@@ -36,3 +36,17 @@ Stellen Sie sicher, dass alle Container laufen:
 ```bash
 docker ps
 ```
+
+#### Dienste stoppen:
+Um alle laufenden Dienste zu stoppen, verwenden Sie das Skript stop_all.sh:
+```bash
+./stop_all.sh
+```
+
+## Weitere Starts
+Sobald Sie das Skript start_all.sh ausführbar gemacht haben, können Sie es bei jedem weiteren Start einfach ausführen:
+
+```bash
+./start_all.sh
+```
+Das Skript baut die Docker-Images bei Bedarf neu und startet die Container.

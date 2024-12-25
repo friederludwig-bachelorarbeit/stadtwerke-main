@@ -1,17 +1,18 @@
 #!/bin/bash
 
-# Array mit den Pfaden zu den Docker Compose-Dateien
-compose_files=(
-    "kafka-setup/docker-compose.yml"
-    "mqtt-consumer/docker-compose.yml"
-    "validation-service/docker-compose.yml"
-    "persistence-service/docker-compose.yml"
-)
+# Datei mit den Pfaden zu den Docker Compose-Dateien
+config_file="compose_files.conf"
 
-# Alle Docker Compose-Dateien stoppen
-for compose_file in "${compose_files[@]}"; do
+# Überprüfen, ob die Konfigurationsdatei existiert
+if [[ ! -f $config_file ]]; then
+    echo "Konfigurationsdatei $config_file nicht gefunden!"
+    exit 1
+fi
+
+# Docker Compose-Dateien aus der Konfiguration laden und Container stoppen
+while IFS= read -r compose_file; do
     echo "Stoppe Docker Compose für: $compose_file"
     docker compose -f $compose_file down
-done
+done < "$config_file"
 
 echo "Alle Container wurden gestoppt."
