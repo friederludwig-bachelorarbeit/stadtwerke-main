@@ -1,4 +1,4 @@
-# Zentrales IoT-Datenerfassungssystem
+# Zentrales IoT-Datenerfassungssystem für Stadtwerke
 Dieses Projekt enthält mehrere Microservices, die mit Docker Compose orchestriert werden. Dazu gehören:
 
 - Kafka-Setup (Kafka und Zookeeper)
