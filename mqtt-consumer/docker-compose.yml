@@ -1,0 +1,19 @@
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+    restart: always
+
+  mqtt-consumer:
+    build:
+      context: .
+    container_name: mqtt-consumer
+    depends_on:
+      - mqtt-broker
+    environment:
+      MQTT_BROKER: mqtt-broker
+      MQTT_PORT: 1883
+      KAFKA_BROKER: kafka:9092  # Verbindung zu Kafka
+    restart: on-failure

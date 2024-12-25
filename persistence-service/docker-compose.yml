@@ -1,0 +1,35 @@
+services:
+  influxdb:
+    image: influxdb:2.7  # Nutze eine v2.x-Version
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      # Initiale Einrichtung von InfluxDB v2.x
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin  # Admin-Benutzer
+      DOCKER_INFLUXDB_INIT_PASSWORD: admin123  # Passwort für den Admin-Benutzer
+      DOCKER_INFLUXDB_INIT_ORG: stadtwerke  # Organisation
+      DOCKER_INFLUXDB_INIT_BUCKET: iot_data  # Bucket
+      DOCKER_INFLUXDB_INIT_TOKEN: DF1TBbibSo5P3FC5c5buuaPfLv8ljsqvPVVPue6yGJ39fl9hDL6STQxcXwvHZqiG  # API-Token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2  # Pfad für v2.x-Daten
+    restart: always
+
+  persistence-service:
+    build:
+      context: .
+    container_name: persistence-service
+    depends_on:
+      - influxdb
+    environment:
+      KAFKA_BROKER: kafka:9092  # Verbindung zu Kafka
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: DF1TBbibSo5P3FC5c5buuaPfLv8ljsqvPVVPue6yGJ39fl9hDL6STQxcXwvHZqiG  # Verwende das initiale Token
+      INFLUXDB_ORG: stadtwerke  # Organisation, die in InfluxDB v2.x erstellt wurde
+      INFLUXDB_BUCKET: iot_data  # Bucket-Name
+    restart: on-failure
+
+volumes:
+  influxdb-data:
+    driver: local

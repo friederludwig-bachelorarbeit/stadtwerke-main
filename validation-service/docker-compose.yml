@@ -1,0 +1,8 @@
+services:
+  validation-service:
+    build:
+      context: .
+    container_name: validation-service
+    environment:
+      KAFKA_BROKER: kafka:9092  # Verbindung zu Kafka
+    restart: on-failure
