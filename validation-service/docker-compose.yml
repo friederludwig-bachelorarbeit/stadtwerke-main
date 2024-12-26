@@ -1,8 +1,16 @@
+networks:
+  shared_network:
+    name: shared_network
+    external: true
+    driver: bridge
+
 services:
   validation-service:
     build:
       context: .
     container_name: validation-service
     environment:
-      KAFKA_BROKER: kafka:9092  # Verbindung zu Kafka
+      KAFKA_BROKER: kafka:9092 
+    networks:
+      - shared_network
     restart: on-failure

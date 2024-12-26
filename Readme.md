@@ -22,6 +22,7 @@ Das Skript start_all.sh ist dafür zuständig, alle Docker-Container zu starten.
 ```bash
 chmod +x start_all.sh
 chmod +x stop_all.sh
+chmod +x restart_all.sh
 ```
 
 #### Docker-Container starten:

@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
   gcc \
   librdkafka-dev \
   python3-dev \
+  iputils-ping \       
   && apt-get clean
 
 # Arbeitsverzeichnis festlegen

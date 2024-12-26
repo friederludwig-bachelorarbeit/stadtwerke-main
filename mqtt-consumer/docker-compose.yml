@@ -1,19 +1,32 @@
+networks:
+  shared_network:
+    name: shared_network
+    external: true
+    driver: bridge
+
 services:
   mqtt-broker:
-    image: eclipse-mosquitto:latest
+    image: eclipse-mosquitto
     container_name: mqtt-broker
     ports:
       - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - shared_network
     restart: always
 
   mqtt-consumer:
     build:
       context: .
+    image: mqtt-consumer-image
     container_name: mqtt-consumer
     depends_on:
       - mqtt-broker
     environment:
       MQTT_BROKER: mqtt-broker
       MQTT_PORT: 1883
-      KAFKA_BROKER: kafka:9092  # Verbindung zu Kafka
+      KAFKA_BROKER: kafka:9092 
+    networks:
+      - shared_network
     restart: on-failure
