@@ -1,8 +1,9 @@
 networks:
-  shared_network:
-    name: shared_network
+  kafka-network:
+    name: kafka-network
     external: true
     driver: bridge
+
 
 services:
   mqtt-broker:
@@ -13,20 +14,7 @@ services:
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     networks:
-      - shared_network
+      - kafka-network
     restart: always
 
-  mqtt-consumer:
-    build:
-      context: .
-    image: mqtt-consumer-image
-    container_name: mqtt-consumer
-    depends_on:
-      - mqtt-broker
-    environment:
-      MQTT_BROKER: mqtt-broker
-      MQTT_PORT: 1883
-      KAFKA_BROKER: kafka:9092 
-    networks:
-      - shared_network
-    restart: on-failure
+

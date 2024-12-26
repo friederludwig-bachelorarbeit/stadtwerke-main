@@ -18,4 +18,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Container-Startbefehl
-CMD ["python", "mqtt_consumer.py"]
+CMD ["python", "main.py"]

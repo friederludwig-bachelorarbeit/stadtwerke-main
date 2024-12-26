@@ -1,0 +1,14 @@
+{
+  "mqtt-consumer": {
+    "venv": "mqtt-consumer/venv",
+    "command": "python mqtt-consumer/main.py"
+  },
+  "persistence-service": {
+    "venv": "persistence-service/venv",
+    "command": "python persistence-service/main.py"
+  },
+  "validation-service": {
+    "venv": "validation-service/venv",
+    "command": "python validation-service/main.py"
+  }
+}

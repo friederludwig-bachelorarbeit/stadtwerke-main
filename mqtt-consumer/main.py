@@ -5,10 +5,11 @@ from confluent_kafka import Producer, KafkaException
 MQTT_BROKER = "mqtt-broker"
 MQTT_PORT = 1883
 MQTT_TOPIC = "stadtwerke/#"
-KAFKA_BROKER = "kafka:9092"  # Kann leer sein, wenn Kafka nicht verwendet wird
+KAFKA_BROKER = "kafka:9092"
 KAFKA_TOPIC = "raw-messages"
 
-print("-> MQTT-Consumer gestartet")
+MQTT_BROKER = "localhost"  # Wenn Anwenung mit venv gestartet
+KAFKA_BROKER = "localhost:9092"  # Wenn Anwenung mit venv gestartet
 
 # Kafka-Producer initialisieren (optional, falls Kafka konfiguriert ist)
 kafka_producer = None
@@ -28,20 +29,20 @@ def on_message(client, userdata, message):
     try:
         topic = message.topic
         payload = json.loads(message.payload.decode())
-        print(f"\ud83d\ude80 Eingehende Nachricht von {topic}: {payload}")
+        payload['topic'] = topic
+        print(f"Eingehende Nachricht von {topic}: {payload}")
 
         # Nachricht an Kafka senden, falls konfiguriert
-        if kafka_producer:
-            try:
-                kafka_producer.produce(
-                    KAFKA_TOPIC,
-                    key=topic,
-                    value=json.dumps(payload)
-                )
-                kafka_producer.flush()
-                print(f"✅ Nachricht an Kafka gesendet: {payload}")
-            except Exception as e:
-                print(f"❌ Fehler beim Senden an Kafka: {e}")
+        try:
+            kafka_producer.produce(
+                KAFKA_TOPIC,
+                key=topic,
+                value=json.dumps(payload)
+            )
+            kafka_producer.flush()
+            print(f"✅ Nachricht an Kafka gesendet: {payload}")
+        except Exception as e:
+            print(f"❌ Fehler beim Senden an Kafka: {e}")
 
     except json.JSONDecodeError:
         print("❌ Nachricht ist kein gültiges JSON.")

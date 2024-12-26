@@ -1,17 +1,18 @@
-import os
 import json
 from confluent_kafka import Consumer
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 # Konfiguration
-KAFKA_BROKER = "localhost:9092"
+KAFKA_BROKER = "kafka:9092"
 KAFKA_TOPIC = "validated-messages"
 
 INFLUXDB_URL = "http://localhost:8086"
-INFLUXDB_TOKEN = "DF1TBbibSo5P3FC5c5buuaPfLv8ljsqvPVVPue6yGJ39fl9hDL6STQxcXwvHZqiG"
+INFLUXDB_TOKEN = "ON595n-YnansVQZd_PgjLcBuUHMxd0A2H943Dgd0POnS8B-W7KdCJ3sdd5QjpOvtNQGgEtd1uD4jRAxZkTcPDg=="
 INFLUXDB_ORG = "stadtwerke"
 INFLUXDB_BUCKET = "iot_data"
+
+KAFKA_BROKER = "localhost:9092"  # Wenn Anwenung mit venv gestartet
 
 # Kafka-Consumer initialisieren
 consumer = Consumer({
@@ -22,24 +23,25 @@ consumer = Consumer({
 consumer.subscribe([KAFKA_TOPIC])
 
 # InfluxDB-Client initialisieren
-idb = InfluxDBClient(
+influxdb_client = InfluxDBClient(
     url=INFLUXDB_URL,
     token=INFLUXDB_TOKEN,
     org=INFLUXDB_ORG
 )
-write_api = idb.write_api(write_options=SYNCHRONOUS)
+write_api = influxdb_client.write_api(write_options=SYNCHRONOUS)
 
 
-def store_in_influxdb(topic, payload):
+def store_in_influxdb(payload):
+    print(f"📥 Speichere Nachricht in InfluxDB: {payload}")
     try:
         # Topic den Tags zuweisen
-        topics = topic.split("/")
+        topics = payload["topic"].split("/")
         standort, maschinentyp, maschinen_id, status_type = topics[
             1], topics[2], topics[3], topics[4]
 
         # Datenpunkt erstellen
         point = (
-            idb.Point(status_type)
+            Point(status_type)
             .tag("standort", standort)
             .tag("maschinentyp", maschinentyp)
             .tag("maschinen_id", maschinen_id)
@@ -65,9 +67,8 @@ try:
             print(f"❌ Kafka-Fehler: {msg.error()}")
             continue
 
-        topic = msg.topic
         payload = json.loads(msg.value().decode())
-        store_in_influxdb(topic, payload)
+        store_in_influxdb(payload)
 finally:
     consumer.close()
-    idb.close()
+    influxdb_client.close()

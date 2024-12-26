@@ -20,4 +20,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Standardbefehl zum Starten des Validation-Service
-CMD ["python", "validation_service.py"]
+CMD ["python", "main.py"]

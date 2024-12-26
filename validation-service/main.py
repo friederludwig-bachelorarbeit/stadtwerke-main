@@ -3,11 +3,12 @@ from confluent_kafka import Consumer, Producer
 from utils import validate_message_with_schema
 
 # Kafka-Konfiguration
-KAFKA_BROKER = "kafka:9092"
+# KAFKA_BROKER = "kafka:9092"
 RAW_TOPIC = "raw-messages"
 VALIDATED_TOPIC = "validated-messages"
 ERROR_TOPIC = "error-messages"
 
+KAFKA_BROKER = "localhost:9092"  # Wenn Anwenung mit venv gestartet
 
 # Kafka-Consumer und Producer konfigurieren
 consumer = Consumer({
