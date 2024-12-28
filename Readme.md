@@ -43,7 +43,7 @@ Stoppt alle oder ausgewählte Docker-Container basierend auf der `container.json
   ```
 
 ### 3. **`restart_all_containers.sh`**
-Startet alle Container neu, indem sie gestoppt und wieder hochgefahren werden. Beispiel:
+Startet alle Container neu, indem sie gestoppt und wieder hochgefahren werden.
 
 ```bash
 bash var/bash/restart_all_containers.sh
@@ -74,7 +74,7 @@ Stoppt alle oder ausgewählte Microservices basierend auf der `services.json`. B
   ```
 
 ## JSON-Konfigurationsdateien
-Damit die Skripte funktionieren, sind die folgenden JSON-Dateien erforderlich:
+Damit die `bash` Skripte funktionieren, müssen die Container und Services über die JSON-Dateien definiert werden:
 
 ### 1. **`services.json`**
 Definiert alle Microservices: die virtuellen Umgebungen und Startbefehle. Beispiel:

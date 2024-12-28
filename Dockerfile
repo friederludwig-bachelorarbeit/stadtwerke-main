@@ -1,6 +1,6 @@
 FROM python:3.9-slim
 
-# Systemabhängigkeiten installieren (z. B. für Kafka)
+# Systemabhängigkeiten installieren (kafka)
 RUN apt-get update && apt-get install -y \
   gcc \
   librdkafka-dev \
@@ -18,5 +18,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Container-Startbefehl
-CMD ["python", "-m", "src.main"]
-
+CMD ["python", "main.py"]

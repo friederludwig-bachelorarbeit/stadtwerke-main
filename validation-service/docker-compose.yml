@@ -1,6 +1,6 @@
 networks:
-  shared_network:
-    name: shared_network
+  kafka-network:
+    name: kafka-network
     external: true
     driver: bridge
 
@@ -8,9 +8,13 @@ services:
   validation-service:
     build:
       context: .
+      dockerfile: Dockerfile
     container_name: validation-service
-    environment:
-      KAFKA_BROKER: kafka:9092 
+    command: "watchmedo auto-restart --directory=/app/src -- python -m src.main"
+    volumes:
+      - ./:/app
     networks:
-      - shared_network
-    restart: on-failure
+      - kafka-network
+    environment:
+      - KAFKA_BROKER=kafka:29092
+    restart: always

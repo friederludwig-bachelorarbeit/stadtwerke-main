@@ -1,2 +1,8 @@
-/var/logs
+.idea
+.vscode
+.env
+/var/logs/*
+!/var/logs/.gitkeep
 */venv
+__pycache__
+nohup.out

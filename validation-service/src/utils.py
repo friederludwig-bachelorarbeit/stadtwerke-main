@@ -8,7 +8,6 @@ message_schema = {
         "timestamp": {"type": "string", "format": "date-time"},
         "status_code": {"type": "integer"},
         "status_text": {"type": "string"},
-        "context": {"type": "string"}
     },
     "required": ["timestamp", "status_text"],
     "additionalProperties": True

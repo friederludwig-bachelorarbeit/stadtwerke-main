@@ -1,8 +1,9 @@
 networks:
-  shared_network:
-    name: shared_network
+  kafka-network:
+    name: kafka-network
     external: true
     driver: bridge
+
 
 services:
   influxdb:
@@ -11,31 +12,32 @@ services:
     ports:
       - "8086:8086"
     environment:
-      DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: admin  
-      DOCKER_INFLUXDB_INIT_PASSWORD: admin123  
-      DOCKER_INFLUXDB_INIT_ORG: stadtwerke  
-      DOCKER_INFLUXDB_INIT_BUCKET: iot_data  
-      DOCKER_INFLUXDB_INIT_TOKEN: DF1TBbibSo5P3FC5c5buuaPfLv8ljsqvPVVPue6yGJ39fl9hDL6STQxcXwvHZqiG  
+      DOCKER_INFLUXDB_INIT_MODE: ${DOCKER_INFLUXDB_INIT_MODE}
+      DOCKER_INFLUXDB_INIT_USERNAME: ${DOCKER_INFLUXDB_INIT_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${DOCKER_INFLUXDB_INIT_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${DOCKER_INFLUXDB_INIT_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${DOCKER_INFLUXDB_INIT_BUCKET}
+      DOCKER_INFLUXDB_INIT_TOKEN: ${DOCKER_INFLUXDB_INIT_TOKEN}
+    networks:
+      - kafka-network
     volumes:
       - influxdb-data:/var/lib/influxdb2  
     restart: always
-
   persistence-service:
     build:
       context: .
+      dockerfile: Dockerfile
     container_name: persistence-service
-    depends_on:
-      - influxdb
-    environment:
-      KAFKA_BROKER: kafka:9092 
-      INFLUXDB_URL: http://influxdb:8086
-      INFLUXDB_TOKEN: DF1TBbibSo5P3FC5c5buuaPfLv8ljsqvPVVPue6yGJ39fl9hDL6STQxcXwvHZqiG 
-      INFLUXDB_ORG: stadtwerke  
-      INFLUXDB_BUCKET: iot_data 
+    command: "watchmedo auto-restart --directory=/app/src -- python -m src.main"
+    volumes:
+      - ./:/app
     networks:
-      - shared_network
-    restart: on-failure
+      - kafka-network
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - INFLUXDB_URL=${INFLUXDB_URL}
+    restart: always  
+
 
 volumes:
   influxdb-data:

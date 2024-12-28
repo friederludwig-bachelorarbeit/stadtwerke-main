@@ -1,2 +1,4 @@
 confluent-kafka==1.9.2
+loguru==0.7.3
 jsonschema==4.17.3
+watchdog

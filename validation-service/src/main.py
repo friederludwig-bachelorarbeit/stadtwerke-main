@@ -1,14 +1,17 @@
+import os
 import json
+from src.config import get_logger
+from src.utils import validate_message_with_schema
 from confluent_kafka import Consumer, Producer
-from utils import validate_message_with_schema
+
+logger = get_logger()
 
 # Kafka-Konfiguration
-# KAFKA_BROKER = "kafka:9092"
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "locahost:9092")
 RAW_TOPIC = "raw-messages"
 VALIDATED_TOPIC = "validated-messages"
 ERROR_TOPIC = "error-messages"
 
-KAFKA_BROKER = "localhost:9092"  # Wenn Anwenung mit venv gestartet
 
 # Kafka-Consumer und Producer konfigurieren
 consumer = Consumer({
@@ -32,20 +35,19 @@ def process_messages():
         if msg is None:
             continue
         if msg.error():
-            print(f"Kafka-Fehler: {msg.error()}")
+            # logger.error(f"Kafka-Fehler: {msg.error()}")
             continue
 
         try:
             payload = json.loads(msg.value().decode('utf-8'))
-            print(f"Empfangene Nachricht: {payload}")
-
             is_valid, message = validate_message_with_schema(payload)
+
             if is_valid:
                 producer.produce(VALIDATED_TOPIC, json.dumps(
                     payload).encode('utf-8'))
-                producer.flush()
-                print(
+                logger.info(
                     f"Validierte Nachricht an {VALIDATED_TOPIC} gesendet: {payload}")
+                producer.flush()
             else:
                 error_payload = {
                     "original_message": payload,
@@ -53,20 +55,22 @@ def process_messages():
                 }
                 producer.produce(ERROR_TOPIC, json.dumps(
                     error_payload).encode('utf-8'))
-                producer.flush()
-                print(
+                logger.error(
                     f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
+                producer.flush()
         except json.JSONDecodeError:
-            print("Ungültiges JSON-Format in der empfangenen Nachricht.")
+            logger.error(
+                "Ungültiges JSON-Format in der empfangenen Nachricht.")
         except Exception as e:
-            print(f"Unerwarteter Fehler: {e}")
+            logger.error(f"Unerwarteter Fehler: {e}")
 
 
 if __name__ == "__main__":
-    print("Validation Service gestartet.")
+    logger.info("Validation Service gestartet.")
     try:
         process_messages()
     except KeyboardInterrupt:
-        print("Validation Service beendet.")
+        consumer.close()
     finally:
+        logger.info("Validation Service beendet.")
         consumer.close()

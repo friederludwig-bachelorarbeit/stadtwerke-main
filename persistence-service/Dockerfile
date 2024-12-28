@@ -1,5 +1,4 @@
-# Basis-Image
-FROM python:3.10-slim
+FROM python:3.9-slim
 
 # Systemabhängigkeiten installieren (kafka)
 RUN apt-get update && apt-get install -y \
@@ -8,15 +7,16 @@ RUN apt-get update && apt-get install -y \
   python3-dev \
   && apt-get clean
 
-# Arbeitsverzeichnis im Container
+# Arbeitsverzeichnis festlegen
 WORKDIR /app
 
-# Anforderungen kopieren und installieren
+# Abhängigkeiten aus requirements.txt installieren
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Quellcode kopieren
+# Code in den Container kopieren
 COPY . .
 
-# Container-Einstiegspunkt
-CMD ["python", "main.py"]
+# Container-Startbefehl
+CMD ["python", "-m", "src.main"]
+

@@ -17,4 +17,17 @@ services:
       - kafka-network
     restart: always
 
-
+  mqtt-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mqtt-consumer
+    command:  "watchmedo auto-restart --directory=/app/src -- python -m src.main"
+    networks:
+      - kafka-network
+    volumes:
+      - ./:/app
+    environment:
+      - MQTT_BROKER=mqtt-broker
+      - KAFKA_BROKER=kafka:29092
+    restart: always
