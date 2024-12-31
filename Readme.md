@@ -54,7 +54,7 @@ Startet alle oder ausgewählte Docker-Container basierend auf der `container.jso
   ```
 - **Einen bestimmten Container starten**:
   ```bash
-  bash bash/start_container.sh mqtt-consumer
+  bash bash/start_container.sh <container-name>
   ```
 
 ### 2. **`stop_container.sh`**
@@ -66,7 +66,7 @@ Stoppt alle oder ausgewählte Docker-Container basierend auf der `container.json
   ```
 - **Einen bestimmten Container stoppen**:
   ```bash
-  bash bash/stop_container.sh mqtt-consumer
+  bash bash/stop_container.sh <container-name>
   ```
 
 ### 3. **`restart_all_containers.sh`**

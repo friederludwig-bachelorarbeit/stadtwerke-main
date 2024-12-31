@@ -23,8 +23,9 @@ stop_container() {
 
 # Funktion zum Stoppen aller oder ausgewählter Docker-Compose-Container
 stop_selected_containers() {
-    selected_containers=("$@") # Liste der ausgewählten Container
-    containers=$(jq -r 'keys[]' "$CONFIG_FILE") # Alle Container-Namen aus JSON lesen
+    selected_containers=("$@") 
+    # Alle Container-Namen aus JSON lesen
+    containers=$(jq -r 'keys[]' "$CONFIG_FILE") 
 
     for container_name in $containers; do
         if [[ ${#selected_containers[@]} -eq 0 || " ${selected_containers[@]} " =~ " $container_name " ]]; then
