@@ -1,76 +1,110 @@
 import os
 import json
-from src.config import get_logger
-from src.utils import validate_message_with_schema
+import time
+from config import get_logger
+from utils import validate_message_with_schema, get_mqtt_topic_segment, on_assign
+from MessageEvent import MessageEvent
 from confluent_kafka import Consumer, Producer
 
 logger = get_logger()
 
 # Kafka-Konfiguration
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "locahost:9092")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
+
 RAW_TOPIC = "raw-messages"
 VALIDATED_TOPIC = "validated-messages"
 ERROR_TOPIC = "error-messages"
 
-
-# Kafka-Consumer und Producer konfigurieren
 consumer = Consumer({
     'bootstrap.servers': KAFKA_BROKER,
-    'group.id': 'validation-service',
-    'auto.offset.reset': 'earliest'
+    'group.id': 'validation-group',
+    'auto.offset.reset': 'earliest',
+    'enable.auto.commit': True,
+    'enable.auto.offset.store': False
 })
 
 producer = Producer({'bootstrap.servers': KAFKA_BROKER})
 
+# Topic abonnieren und Callbacks einbinden
+consumer.subscribe([RAW_TOPIC])
 
-def process_messages():
+
+def process_message(payload):
     """
-    Konsumiert Nachrichten aus Kafka, validiert sie und sendet validierte oder fehlerhafte Nachrichten
-    an die entsprechenden Topics.
+    Konsumiert Nachrichten aus Kafka, validiert sie und sendet 
+    validierte oder fehlerhafte Nachrichten an die entsprechenden Topics.
     """
-    consumer.subscribe([RAW_TOPIC])
 
-    while True:
-        msg = consumer.poll(1.0)
-        if msg is None:
-            continue
-        if msg.error():
-            # logger.error(f"Kafka-Fehler: {msg.error()}")
-            continue
+    is_valid, message = validate_message_with_schema(payload)
 
+    if is_valid:
         try:
-            payload = json.loads(msg.value().decode('utf-8'))
-            is_valid, message = validate_message_with_schema(payload)
+            mqtt_topics = payload["mqtt_topic"].split("/")
 
-            if is_valid:
-                producer.produce(VALIDATED_TOPIC, json.dumps(
-                    payload).encode('utf-8'))
-                logger.info(
-                    f"Validierte Nachricht an {VALIDATED_TOPIC} gesendet: {payload}")
-                producer.flush()
-            else:
-                error_payload = {
-                    "original_message": payload,
-                    "error": message
-                }
-                producer.produce(ERROR_TOPIC, json.dumps(
-                    error_payload).encode('utf-8'))
-                logger.error(
-                    f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
-                producer.flush()
-        except json.JSONDecodeError:
+            # MessageEvent-Objekt erstellen
+            msg = MessageEvent()
+            msg.standort = get_mqtt_topic_segment(mqtt_topics, 1)
+            msg.maschinentyp = get_mqtt_topic_segment(mqtt_topics, 2)
+            msg.maschinen_id = get_mqtt_topic_segment(mqtt_topics, 3)
+            msg.status_type = get_mqtt_topic_segment(mqtt_topics, 4)
+            msg.sensor_id = get_mqtt_topic_segment(mqtt_topics, 5)
+            msg.timestamp = payload.get("timestamp")
+            msg.value = payload.get("value", "")
+
+            msg_dict = msg.to_dict()
+            producer.produce(VALIDATED_TOPIC, value=json.dumps(msg_dict))
+
+            # Produziere validierte Nachricht
+            logger.info(
+                f"Validierte Nachricht an {VALIDATED_TOPIC} gesendet: {msg_dict}")
+            producer.flush()
+
+        except IndexError as e:
+            error_payload = {
+                "original_message": payload,
+                "error": f"IndexError: {str(e)} - mqtt_topic enthält nicht genügend Segmente."
+            }
+            producer.produce(ERROR_TOPIC, json.dumps(error_payload))
             logger.error(
-                "Ungültiges JSON-Format in der empfangenen Nachricht.")
-        except Exception as e:
-            logger.error(f"Unerwarteter Fehler: {e}")
+                f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
+            producer.flush()
+    else:
+        error_payload = {
+            "original_message": payload,
+            "error": message
+        }
+        producer.produce(ERROR_TOPIC, json.dumps(error_payload))
+        logger.error(
+            f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
+        producer.flush()
 
 
 if __name__ == "__main__":
     logger.info("Validation Service gestartet.")
+
     try:
-        process_messages()
+        while True:
+            msg = consumer.poll(1.0)
+            if msg is None:
+                # Überprüfe, ob Partitionen zugewiesen sind
+                assigned_partitions = consumer.assignment()
+                if not assigned_partitions:
+                    logger.warning(
+                        "Keine Partitionen zugewiesen. Erneuter Versuch...")
+                    consumer.subscribe([RAW_TOPIC], on_assign=on_assign)
+                    time.sleep(5)
+                continue
+            if msg.error():
+                logger.error(f"Kafka-Fehler: {msg.error()}")
+                continue
+
+            payload = json.loads(msg.value().decode())
+            process_message(payload)
+
+            consumer.store_offsets(msg)
+
     except KeyboardInterrupt:
-        consumer.close()
+        pass
     finally:
         logger.info("Validation Service beendet.")
         consumer.close()

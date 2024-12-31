@@ -17,7 +17,7 @@ Stellen Sie sicher, dass die folgenden Tools auf Ihrem System installiert sind:
 ## Erster Start
 Führen Sie die folgenden Schritte aus, um das Projekt zum ersten Mal zu starten:
 
-> Der `kafka` Container muss immer **zuerst** gestartet werden, erst wenn diese läuft können die anderen gestartet werden.
+> Der `kafka` Container muss immer **zuerst** gestartet werden, erst wenn dieser läuft können die anderen gestartet werden.
 1. **Kafka Docker-Container starten**:
    ```bash
    bash bash/start_container.sh kafka

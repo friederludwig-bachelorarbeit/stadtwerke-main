@@ -10,13 +10,16 @@ RUN apt-get update && apt-get install -y \
 # Arbeitsverzeichnis festlegen
 WORKDIR /app
 
+# PYTHONPATH setzen
+ENV PYTHONPATH=/app/src
+
 # Abhängigkeiten aus requirements.txt installieren
-COPY requirements.txt .
+COPY src/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Code in den Container kopieren
 COPY . .
 
 # Container-Startbefehl
-CMD ["python", "-m", "src.main"]
+CMD ["python", "-m", "main"]
 
