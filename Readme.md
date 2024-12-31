@@ -38,10 +38,10 @@ Um alle Dienste zu stoppen:
 
 
 ## Verfügbare Shell-Skripte
-Die Shell-Skripte befinden sich im Verzeichnis `bash/...` und können mit `bash` ausgeführt werden. Sie dienen der Verwaltung der Services und Container:
+Die Shell-Skripte befinden sich im Verzeichnis `cmd/...` und können mit `bash` ausgeführt werden. Sie dienen der Verwaltung der Services und Container:
 
 ### 1. **`start_container.sh`**
-Startet alle oder ausgewählte Docker-Container basierend auf der `container.json`. Beispiel:
+Startet alle oder ausgewählte Docker-Container basierend auf der `container.json`. 
 
 - **Alle Container starten**:
   ```bash
@@ -53,7 +53,7 @@ Startet alle oder ausgewählte Docker-Container basierend auf der `container.jso
   ```
 
 ### 2. **`stop_container.sh`**
-Stoppt alle oder ausgewählte Docker-Container basierend auf der `container.json`. Beispiel:
+Stoppt alle oder ausgewählte Docker-Container basierend auf der `container.json`.
 
 - **Alle Container stoppen**:
   ```bash
@@ -75,7 +75,8 @@ bash cmd/restart_all_containers.sh
 Damit die `bash` Skripte funktionieren, müssen die Container über die JSON-Dateie definiert werden:
 
 ### **`container.json`**
-Definiert alle Docker Compose-Dateien für die Container. Beispiel:
+Definiert alle Docker Compose-Dateien für die Container.
+<br/> Beispiel:
 
 ```json
 {
