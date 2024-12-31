@@ -12,10 +12,9 @@ logger = get_logger()
 # Kafka-Konfiguration
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
 KAFKA_CONSUMER_GROUP = "validation-group"
-
-RAW_TOPIC = "raw-messages"
-VALIDATED_TOPIC = "validated-messages"
-ERROR_TOPIC = "error-messages"
+KAFKA_RAW_TOPIC = "raw-messages"
+KAFKA_VALIDATED_TOPIC = "validated-messages"
+KAFKA_ERROR_TOPIC = "error-messages"
 
 consumer_settings = {
     'bootstrap.servers': KAFKA_BROKER,
@@ -49,6 +48,20 @@ def kafka_producer():
         producer.flush()
 
 
+def check_partitions(consumer, topic, retry_interval=5):
+    """
+    Überprüft, ob dem Consumer Partitionen zugewiesen sind.
+    Wenn keine Partitionen zugewiesen sind, wird neu abonniert.
+    """
+    assigned_partitions = consumer.assignment()
+    if not assigned_partitions:
+        logger.warning("Keine Partitionen zugewiesen. Erneuter Versuch...")
+        consumer.subscribe([topic], on_assign=on_assign)
+        time.sleep(retry_interval)
+        return False
+    return True
+
+
 def process_message(payload, producer):
     """
     Konsumiert Nachrichten aus Kafka, validiert sie und sendet 
@@ -71,47 +84,43 @@ def process_message(payload, producer):
             msg.value = payload.get("value", "")
 
             msg_dict = msg.to_dict()
-            producer.produce(VALIDATED_TOPIC, value=json.dumps(msg_dict))
+            producer.produce(KAFKA_VALIDATED_TOPIC, value=json.dumps(msg_dict))
 
             # Produziere validierte Nachricht
             logger.info(
-                f"Validierte Nachricht an {VALIDATED_TOPIC} gesendet: {msg_dict}")
+                f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg_dict}")
 
         except IndexError as e:
             error_payload = {
                 "original_message": payload,
                 "error": f"IndexError: {str(e)} - mqtt_topic enthält nicht genügend Segmente."
             }
-            producer.produce(ERROR_TOPIC, value=json.dumps(error_payload))
+            producer.produce(KAFKA_ERROR_TOPIC,
+                             value=json.dumps(error_payload))
             logger.error(
-                f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
+                f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
     else:
         error_payload = {
             "original_message": payload,
             "error": message
         }
-        producer.produce(ERROR_TOPIC, value=json.dumps(error_payload))
+        producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
         logger.error(
-            f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
+            f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
 
 
 if __name__ == "__main__":
     logger.info("Validation Service gestartet.")
 
     with kafka_consumer() as consumer, kafka_producer() as producer:
-        consumer.subscribe([RAW_TOPIC], on_assign=on_assign)
+        consumer.subscribe([KAFKA_RAW_TOPIC], on_assign=on_assign)
 
         try:
             while True:
                 msg = consumer.poll(1.0)
                 if msg is None:
-                    # Überprüfe, ob Partitionen zugewiesen sind
-                    assigned_partitions = consumer.assignment()
-                    if not assigned_partitions:
-                        logger.warning(
-                            "Keine Partitionen zugewiesen. Erneuter Versuch...")
-                        consumer.subscribe([RAW_TOPIC], on_assign=on_assign)
-                        time.sleep(5)
+                    if not check_partitions(consumer, KAFKA_RAW_TOPIC):
+                        continue
                     continue
                 if msg.error():
                     logger.error(f"Kafka-Fehler: {msg.error()}")
@@ -120,7 +129,6 @@ if __name__ == "__main__":
                 payload = json.loads(msg.value().decode())
                 process_message(payload, producer)
                 consumer.store_offsets(msg)
-
         except KeyboardInterrupt:
             pass
         finally:

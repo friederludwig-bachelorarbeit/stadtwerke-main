@@ -54,6 +54,20 @@ def influxdb_client_manager():
         client.close()
 
 
+def check_partitions(consumer, topic, retry_interval=5):
+    """
+    Überprüft, ob dem Consumer Partitionen zugewiesen sind.
+    Wenn keine Partitionen zugewiesen sind, wird neu abonniert.
+    """
+    assigned_partitions = consumer.assignment()
+    if not assigned_partitions:
+        logger.warning("Keine Partitionen zugewiesen. Erneuter Versuch...")
+        consumer.subscribe([topic], on_assign=on_assign)
+        time.sleep(retry_interval)
+        return False
+    return True
+
+
 def store_in_influxdb(payload, write_api):
     """ Speichert die Daten aus Kafka in InfluxDB. """
     try:
@@ -93,19 +107,12 @@ if __name__ == "__main__":
             while True:
                 msg = consumer.poll(1.0)
                 if msg is None:
-                    # Überprüfe, ob Partitionen zugewiesen sind
-                    assigned_partitions = consumer.assignment()
-                    if not assigned_partitions:
-                        logger.warning(
-                            "Keine Partitionen zugewiesen. Erneuter Versuch...")
-                        consumer.subscribe(
-                            [KAFKA_CONSUMER_TOPIC], on_assign=on_assign)
-                        time.sleep(5)
+                    if not check_partitions(consumer, KAFKA_CONSUMER_TOPIC):
+                        continue
                     continue
                 if msg.error():
                     logger.error(f"Kafka-Fehler: {msg.error()}")
                     continue
-
                 try:
                     payload = json.loads(msg.value().decode())
                     store_in_influxdb(payload, write_api)
@@ -114,6 +121,6 @@ if __name__ == "__main__":
                     logger.error(f"Fehler beim Speichern der Nachricht: {e}")
 
         except KeyboardInterrupt:
-            logger.info("Beenden durch Benutzer.")
+            pass
         finally:
             logger.info("Persistence Service beendet.")
