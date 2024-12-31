@@ -24,7 +24,7 @@ def kafka_producer():
         producer.flush()
 
 
-def on_message(message, producer):
+def on_message(client, userdata, message, producer):
     """
     Callback-Funktion für eingehende MQTT-Nachrichten.
     Sendet die Nachricht an Kafka.
@@ -34,6 +34,7 @@ def on_message(message, producer):
         payload = json.loads(message.payload.decode())
         payload['mqtt_topic'] = topic
 
+        # Nachricht an Kafka senden
         producer.produce(
             KAFKA_PRODUCER_TOPIC,
             key=topic,
@@ -52,9 +53,8 @@ if __name__ == "__main__":
     mqtt_client = Client()
 
     with kafka_producer() as producer:
-        # Callback on_message kapseln damit Producer übergeben werden kann
-        def wrapped_on_message(message):
-            on_message(message, producer)
+        def wrapped_on_message(client, userdata, message):
+            on_message(client, userdata, message, producer)
 
         mqtt_client.on_message = wrapped_on_message
 

@@ -17,18 +17,13 @@ Stellen Sie sicher, dass die folgenden Tools auf Ihrem System installiert sind:
 ## Erster Start
 Führen Sie die folgenden Schritte aus, um das Projekt zum ersten Mal zu starten:
 
-> Der `kafka` Container muss immer **zuerst** gestartet werden, erst wenn dieser läuft können die anderen gestartet werden.
-1. **Kafka Docker-Container starten**:
+
+1. **Docker-Container starten**:
    ```bash
-   bash bash/start_container.sh kafka
+   bash cmd/start_container.sh
    ```
 
-2. **Docker-Container starten**:
-   ```bash
-   bash bash/start_container.sh
-   ```
-
-3. **Überprüfen, ob die Container laufen**:
+2. **Überprüfen, ob die Container laufen**:
    ```bash
    docker ps
    ```
@@ -38,7 +33,7 @@ Um alle Dienste zu stoppen:
 
 - **Container stoppen**:
   ```bash
-  bash bash/stop_container.sh
+  bash cmd/stop_container.sh
   ```
 
 
@@ -50,11 +45,11 @@ Startet alle oder ausgewählte Docker-Container basierend auf der `container.jso
 
 - **Alle Container starten**:
   ```bash
-  bash bash/start_container.sh
+  bash cmd/start_container.sh
   ```
 - **Einen bestimmten Container starten**:
   ```bash
-  bash bash/start_container.sh <container-name>
+  bash cmd/start_container.sh <container-name>
   ```
 
 ### 2. **`stop_container.sh`**
@@ -62,18 +57,18 @@ Stoppt alle oder ausgewählte Docker-Container basierend auf der `container.json
 
 - **Alle Container stoppen**:
   ```bash
-  bash bash/stop_container.sh
+  bash cmd/stop_container.sh
   ```
 - **Einen bestimmten Container stoppen**:
   ```bash
-  bash bash/stop_container.sh <container-name>
+  bash cmd/stop_container.sh <container-name>
   ```
 
 ### 3. **`restart_all_containers.sh`**
 Startet alle Container neu, indem sie gestoppt und wieder hochgefahren werden.
 
 ```bash
-bash bash/restart_all_containers.sh
+bash cmd/restart_all_containers.sh
 ```
 
 ## JSON-Konfigurationsdateien
