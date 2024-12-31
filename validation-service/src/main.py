@@ -1,6 +1,7 @@
 import os
 import json
 import time
+from contextlib import contextmanager
 from config import get_logger
 from utils import validate_message_with_schema, get_mqtt_topic_segment, on_assign
 from MessageEvent import MessageEvent
@@ -10,31 +11,49 @@ logger = get_logger()
 
 # Kafka-Konfiguration
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
+KAFKA_CONSUMER_GROUP = "validation-group"
 
 RAW_TOPIC = "raw-messages"
 VALIDATED_TOPIC = "validated-messages"
 ERROR_TOPIC = "error-messages"
 
-consumer = Consumer({
+consumer_settings = {
     'bootstrap.servers': KAFKA_BROKER,
-    'group.id': 'validation-group',
+    'group.id': KAFKA_CONSUMER_GROUP,
     'auto.offset.reset': 'earliest',
-    'enable.auto.commit': True,
     'enable.auto.offset.store': False
-})
-
-producer = Producer({'bootstrap.servers': KAFKA_BROKER})
-
-# Topic abonnieren und Callbacks einbinden
-consumer.subscribe([RAW_TOPIC])
+}
 
 
-def process_message(payload):
+@contextmanager
+def kafka_consumer():
+    """
+    Kontextmanager für den Kafka-Consumer.
+    """
+    consumer = Consumer(consumer_settings)
+    try:
+        yield consumer
+    finally:
+        consumer.close()
+
+
+@contextmanager
+def kafka_producer():
+    """
+    Kontextmanager für den Kafka-Producer.
+    """
+    producer = Producer({'bootstrap.servers': KAFKA_BROKER})
+    try:
+        yield producer
+    finally:
+        producer.flush()
+
+
+def process_message(payload, producer):
     """
     Konsumiert Nachrichten aus Kafka, validiert sie und sendet 
     validierte oder fehlerhafte Nachrichten an die entsprechenden Topics.
     """
-
     is_valid, message = validate_message_with_schema(payload)
 
     if is_valid:
@@ -57,54 +76,52 @@ def process_message(payload):
             # Produziere validierte Nachricht
             logger.info(
                 f"Validierte Nachricht an {VALIDATED_TOPIC} gesendet: {msg_dict}")
-            producer.flush()
 
         except IndexError as e:
             error_payload = {
                 "original_message": payload,
                 "error": f"IndexError: {str(e)} - mqtt_topic enthält nicht genügend Segmente."
             }
-            producer.produce(ERROR_TOPIC, json.dumps(error_payload))
+            producer.produce(ERROR_TOPIC, value=json.dumps(error_payload))
             logger.error(
                 f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
-            producer.flush()
     else:
         error_payload = {
             "original_message": payload,
             "error": message
         }
-        producer.produce(ERROR_TOPIC, json.dumps(error_payload))
+        producer.produce(ERROR_TOPIC, value=json.dumps(error_payload))
         logger.error(
             f"Fehlerhafte Nachricht an {ERROR_TOPIC} gesendet: {error_payload}")
-        producer.flush()
 
 
 if __name__ == "__main__":
     logger.info("Validation Service gestartet.")
 
-    try:
-        while True:
-            msg = consumer.poll(1.0)
-            if msg is None:
-                # Überprüfe, ob Partitionen zugewiesen sind
-                assigned_partitions = consumer.assignment()
-                if not assigned_partitions:
-                    logger.warning(
-                        "Keine Partitionen zugewiesen. Erneuter Versuch...")
-                    consumer.subscribe([RAW_TOPIC], on_assign=on_assign)
-                    time.sleep(5)
-                continue
-            if msg.error():
-                logger.error(f"Kafka-Fehler: {msg.error()}")
-                continue
+    with kafka_consumer() as consumer, kafka_producer() as producer:
+        consumer.subscribe([RAW_TOPIC], on_assign=on_assign)
 
-            payload = json.loads(msg.value().decode())
-            process_message(payload)
+        try:
+            while True:
+                msg = consumer.poll(1.0)
+                if msg is None:
+                    # Überprüfe, ob Partitionen zugewiesen sind
+                    assigned_partitions = consumer.assignment()
+                    if not assigned_partitions:
+                        logger.warning(
+                            "Keine Partitionen zugewiesen. Erneuter Versuch...")
+                        consumer.subscribe([RAW_TOPIC], on_assign=on_assign)
+                        time.sleep(5)
+                    continue
+                if msg.error():
+                    logger.error(f"Kafka-Fehler: {msg.error()}")
+                    continue
 
-            consumer.store_offsets(msg)
+                payload = json.loads(msg.value().decode())
+                process_message(payload, producer)
+                consumer.store_offsets(msg)
 
-    except KeyboardInterrupt:
-        pass
-    finally:
-        logger.info("Validation Service beendet.")
-        consumer.close()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            logger.info("Validation Service beendet.")
