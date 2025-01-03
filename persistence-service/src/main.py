@@ -10,12 +10,10 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 
 logger = get_logger()
 
-# Kafka-Konfiguration
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
 KAFKA_CONSUMER_TOPIC = "validated-messages"
 KAFKA_CONSUMER_GROUP = "persistence-group"
 
-# InfluxDB-Konfiguration
 INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://localhost:8086")
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
 INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "stadtwerke")

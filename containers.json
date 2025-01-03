@@ -2,6 +2,9 @@
   "kafka": {
     "compose": "kafka/docker-compose.yml"
   },
+  "mqtt-broker": {
+    "compose": "mqtt-broker/docker-compose.yml"
+  },
   "mqtt-consumer": {
     "compose": "mqtt-consumer/docker-compose.yml"
   },

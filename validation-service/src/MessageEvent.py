@@ -1,5 +1,9 @@
-
 class MessageEvent:
+    """
+    Diese Klasse repräsentiert ein MessageEvent, welches 
+    von der Maschine an den Server gesendet wird.
+    """
+
     def __init__(self):
         self.timestamp = None
         self._standort = None
