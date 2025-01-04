@@ -8,7 +8,7 @@ from utils import on_assign
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from confluent_kafka import Consumer
-from opentelemetry.propagate import extract  # Trace-Kontext extrahieren
+from opentelemetry.propagate import extract
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
 KAFKA_CONSUMER_TOPIC = "validated-messages"

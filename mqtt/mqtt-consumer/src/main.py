@@ -81,6 +81,7 @@ if __name__ == "__main__":
         mqtt_client.on_message = wrapped_on_message
 
         try:
+            # Mit MQTT-Broker verbinden und auf Nachrichten warten
             mqtt_client.connect(MQTT_BROKER, MQTT_PORT)
             mqtt_client.subscribe(MQTT_TOPIC)
             logger.info(f"Verbunden mit MQTT-Broker {MQTT_BROKER}:{MQTT_PORT}")
