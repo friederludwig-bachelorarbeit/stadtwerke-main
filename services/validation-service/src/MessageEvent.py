@@ -70,11 +70,19 @@ class MessageEvent:
         self._sensor_id = value
 
     def to_dict(self):
+        """
+        Transformiert eine MessageEvent-Instanz in ein generisches Format
+        """
         return {
-            "standort": self._standort,
-            "maschinentyp": self._maschinentyp,
-            "maschinen_id": self._maschinen_id,
-            "status_type": self._status_type,
-            "value": self._value,
-            "sensor_id": self._sensor_id,
+            "timestamp": self.timestamp,
+            "measurement": self.status_type,
+            "tags": {
+                "standort": self.standort,
+                "maschinentyp": self.maschinentyp,
+                "maschinen_id": self.maschinen_id,
+                "sensor_id": self.sensor_id,
+            },
+            "fields": {
+                "value": self.value,
+            }
         }

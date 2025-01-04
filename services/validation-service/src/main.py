@@ -64,23 +64,44 @@ def check_partitions(consumer, topic, retry_interval=5):
     return True
 
 
+def set_consumer_tracing_attributes(span, topic, message):
+    """
+    Setzt Tracing-Attribute für eine Kafka-Consumer-Nachricht.
+    """
+    span.set_attribute("kafka.consumer.topic", topic)
+    span.set_attribute("kafka.message.offset", message.offset())
+    span.set_attribute("kafka.message.partition", message.partition())
+
+
+def set_producer_tracing_attributes(span, topic, message):
+    """
+    Setzt Tracing-Attribute für eine Kafka-Producer-Nachricht.
+    """
+    span.set_attribute("kafka.producer.topic", topic)
+    span.set_attribute("kafka.producer.message_size", len(json.dumps(message)))
+
+
 def process_message(payload, producer, headers):
     """
     Konsumiert Nachrichten aus Kafka, validiert sie und sendet 
-    validierte oder fehlerhafte Nachrichten an die entsprechenden Topics.
+    validierte oder fehlerhafte Nachrichten an die entsprechenden Kafka Topics.
     """
     # Trace-Kontext aus den Kafka-Headern extrahieren
     context = extract(headers)
 
     with tracer.start_as_current_span("process-message", context=context) as span:
         try:
+            # JSON Schema validieren und Tracing-Attribute setzen
             is_valid, message = validate_message_with_schema(payload)
             span.set_attribute("kafka.message.valid", is_valid)
             span.set_attribute("kafka.message.payload_size", len(json.dumps(payload)))
 
             if is_valid:
                 try:
+                    # MQTT-Topic in Segmente aufteilen
                     mqtt_topics = payload["mqtt_topic"].split("/")
+
+                    # Nachricht in MessageEvent umwandeln
                     msg = MessageEvent()
                     msg.standort = get_mqtt_topic_segment(mqtt_topics, 1)
                     msg.maschinentyp = get_mqtt_topic_segment(mqtt_topics, 2)
@@ -92,24 +113,22 @@ def process_message(payload, producer, headers):
 
                     msg_dict = msg.to_dict()
 
-                    # Kafka-Header für Trace-Kontext vorbereiten
+                    # Trace-Kontext einbetten
                     kafka_headers_dict = {}
-                    inject(kafka_headers_dict)  # Trace-Kontext einbetten
+                    inject(kafka_headers_dict)
                     kafka_headers = [(key, value.encode("utf-8"))
                                      for key, value in kafka_headers_dict.items()]
 
+                    # Validierte Nachricht an Kafka senden
                     producer.produce(
                         KAFKA_VALIDATED_TOPIC,
                         value=json.dumps(msg_dict),
                         headers=kafka_headers)
 
                     # Tracing-Attribute setzen bei validierter Nachricht
-                    span.set_attribute("kafka.producer.topic", KAFKA_VALIDATED_TOPIC)
-                    span.set_attribute("kafka.producer.message_size",
-                                       len(json.dumps(msg_dict)))
+                    set_producer_tracing_attributes(span, KAFKA_VALIDATED_TOPIC, msg_dict)
 
-                    logger.info(
-                        f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg_dict}")
+                    logger.info(f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg_dict}")
 
                 except IndexError as e:
                     error_payload = {
@@ -117,21 +136,16 @@ def process_message(payload, producer, headers):
                         "error": f"IndexError: {str(e)} - mqtt_topic enthält nicht genügend Segmente."
                     }
                     producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
-
-                    # Tracing Attribute bei fehlerhafte Nachricht
-                    span.set_attribute("kafka.producer.topic", KAFKA_ERROR_TOPIC)
+                    set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
                     span.record_exception(e)
-                    logger.error(
-                        f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
+                    logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
             else:
                 error_payload = {
                     "original_message": payload,
                     "error": message
                 }
                 producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
-
-                # Tracing Attribute bei fehlerhafte Nachricht
-                span.set_attribute("kafka.producer.topic", KAFKA_ERROR_TOPIC)
+                set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
                 span.record_exception(Exception(message))
                 logger.error(
                     f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
@@ -170,13 +184,12 @@ if __name__ == "__main__":
                         payload = json.loads(msg.value().decode())
 
                         # Tracing-Attribute setzen
-                        span.set_attribute("kafka.consumer.topic", KAFKA_RAW_TOPIC)
-                        span.set_attribute("kafka.message.offset", msg.offset())
-                        span.set_attribute("kafka.message.partition", msg.partition())
+                        set_consumer_tracing_attributes(span, KAFKA_RAW_TOPIC, msg)
 
                         # Nachricht verarbeiten
                         process_message(payload, producer, headers)
                         consumer.store_offsets(msg)
+
                     except Exception as e:
                         span.record_exception(e)
                         logger.error(f"Fehler beim Verarbeiten der Nachricht: {e}")

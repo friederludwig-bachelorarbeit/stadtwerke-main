@@ -68,43 +68,55 @@ def check_partitions(consumer, topic, retry_interval=5):
     return True
 
 
+def set_kafka_tracing_attributes(span, topic, message):
+    """
+    Setzt Tracing-Attribute für Kafka-Nachrichten.
+    """
+    span.set_attribute("kafka.consumer.topic", topic)
+    span.set_attribute("kafka.message.offset", message.offset())
+    span.set_attribute("kafka.message.partition", message.partition())
+    span.set_attribute("message.payload_size", len(message.value()))
+
+
+def set_influxdb_tracing_attributes(span, bucket, tags):
+    """
+    Setzt Tracing-Attribute für InfluxDB.
+    """
+    span.set_attribute("db.operation", "write")
+    span.set_attribute("db.system", "influxdb")
+    span.set_attribute("influxdb.bucket", bucket)
+    for tag_key, tag_value in tags.items():
+        span.set_attribute(f"data.tag.{tag_key}", tag_value)
+
+
 def store_in_influxdb(payload, write_api, context):
     """ Speichert die Daten aus Kafka in InfluxDB. """
     with tracer.start_as_current_span("store-in-influxdb", context=context) as span:
         try:
+            # InfluxDB-Daten aus der Payload
             timestamp = payload.get("timestamp")
-            standort = payload.get("standort")
-            maschinen_id = payload.get("maschinen_id")
-            maschinentyp = payload.get("maschinentyp")
-            status_type = payload.get("status_type")
-            sensor_id = payload.get("sensor_id")
-            value = payload.get("value")
+            measurement = payload.get("measurement")  # Der Messungstyp, z. B. status_type
+            tags = payload.get("tags", {})
+            fields = payload.get("fields", {})
 
             # Tracing-Attribute setzen
-            span.set_attribute("db.operation", "write")
-            span.set_attribute("db.system", "influxdb")
-            span.set_attribute("influxdb.bucket", INFLUXDB_BUCKET)
-            span.set_attribute("data.standort", standort)
-            span.set_attribute("data.maschinentyp", maschinentyp)
-            span.set_attribute("data.status_type", status_type)
-            span.set_attribute("data.sensor_id", sensor_id)
+            set_influxdb_tracing_attributes(span, INFLUXDB_BUCKET, tags)
 
             # Datenpunkt erstellen
-            point = (
-                Point(status_type)
-                .tag("standort", standort)
-                .tag("maschinentyp", maschinentyp)
-                .tag("maschinen_id", maschinen_id)
-                .field("value", value)
-                .time(timestamp)
-            )
+            point = Point(measurement).time(timestamp)
 
-            # Sensor-ID als Tag setzen, falls vorhanden
-            if sensor_id:
-                point = point.tag("sensor_id", sensor_id)
+            # Tags hinzufügen
+            for tag_key, tag_value in tags.items():
+                point = point.tag(tag_key, tag_value)
 
+            # Fields hinzufügen
+            for field_key, field_value in fields.items():
+                point = point.field(field_key, field_value)
+
+            # Datenpunkt in die Datenbank schreiben
             write_api.write(bucket=INFLUXDB_BUCKET, record=point)
             logger.info(f"Nachricht gespeichert: {payload}")
+
         except Exception as e:
             span.record_exception(e)
             logger.error(f"Fehler beim Speichern in InfluxDB: {e}")
@@ -125,11 +137,9 @@ if __name__ == "__main__":
                     logger.error(f"Kafka-Fehler: {msg.error()}")
                     continue
 
-                # Kafka-Header extrahieren und in ein Dictionary umwandeln
+                # Kafka-Header extrahieren und Trace-Kontext erstellen
                 headers = msg.headers() or []
                 headers_dict = {key: value.decode("utf-8") for key, value in headers}
-
-                # Trace-Kontext aus Kafka-Headern extrahieren
                 context = extract(headers_dict)
 
                 with tracer.start_as_current_span("consume-message", context=context) as span:
@@ -137,19 +147,15 @@ if __name__ == "__main__":
                         payload = json.loads(msg.value().decode())
 
                         # Tracing-Attribute setzen
-                        span.set_attribute("kafka.consumer.topic", KAFKA_CONSUMER_TOPIC)
-                        span.set_attribute("kafka.message.offset", msg.offset())
-                        span.set_attribute("kafka.message.partition", msg.partition())
-                        span.set_attribute("message.payload_size",
-                                           len(json.dumps(payload)))
+                        set_kafka_tracing_attributes(span, KAFKA_CONSUMER_TOPIC, msg)
 
                         # Nachricht in InfluxDB speichern
                         store_in_influxdb(payload, write_api, context)
                         consumer.commit(asynchronous=False)
+
                     except Exception as e:
                         span.record_exception(e)
                         logger.error(f"Fehler beim Verarbeiten der Nachricht: {e}")
-
         except KeyboardInterrupt:
             pass
         finally:
