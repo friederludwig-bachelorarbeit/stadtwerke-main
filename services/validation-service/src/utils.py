@@ -1,5 +1,5 @@
 import re
-from config import get_logger
+from config_logger import get_logger
 from jsonschema import validate, ValidationError
 
 OFFSET_FILE = "last_offset.json"

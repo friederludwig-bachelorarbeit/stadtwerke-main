@@ -1,11 +1,14 @@
-from config import get_logger
+from config_logger import get_logger
 
 logger = get_logger()
 
 # Kafka-Event-Handler
+
+
 def on_assign(consumer, partitions):
     logger.info(f"Partitions assigned: {partitions}")
     consumer.assign(partitions)
+
 
 def on_revoke(consumer, partitions):
     try:
