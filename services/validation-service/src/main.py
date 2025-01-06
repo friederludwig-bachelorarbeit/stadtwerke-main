@@ -81,6 +81,34 @@ def set_producer_tracing_attributes(span, topic, message):
     span.set_attribute("kafka.producer.message_size", len(json.dumps(message)))
 
 
+def handle_index_error(payload, producer, span, error):
+    """
+    Behandelt IndexError und sendet die fehlerhafte Nachricht an das Kafka Fehler-Topic.
+    """
+    error_payload = {
+        "original_message": payload,
+        "error": f"IndexError: {str(error)} - mqtt_topic enthält nicht genügend Segmente."
+    }
+    producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
+    set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
+    span.record_exception(error)
+    logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
+
+
+def handle_invalid_message(payload, producer, span, error_message):
+    """
+    Behandelt ungültige Nachrichten und sendet sie an das Fehler-Topic.
+    """
+    error_payload = {
+        "original_message": payload,
+        "error": error_message
+    }
+    producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
+    set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
+    span.record_exception(Exception(error_message))
+    logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
+
+
 def process_message(payload, producer, headers):
     """
     Konsumiert Nachrichten aus Kafka, validiert sie und sendet 
@@ -131,28 +159,13 @@ def process_message(payload, producer, headers):
                     logger.info(f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg_dict}")
 
                 except IndexError as e:
-                    error_payload = {
-                        "original_message": payload,
-                        "error": f"IndexError: {str(e)} - mqtt_topic enthält nicht genügend Segmente."
-                    }
-                    producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
-                    set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
-                    span.record_exception(e)
-                    logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
+                    handle_index_error(payload, producer, span, e)
             else:
-                error_payload = {
-                    "original_message": payload,
-                    "error": message
-                }
-                producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
-                set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
-                span.record_exception(Exception(message))
-                logger.error(
-                    f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
+                handle_invalid_message(payload, producer, span, message)
 
         except Exception as e:
             span.record_exception(e)
-            logger.error(f"Fehler beim Verarbeiten der Nachricht: {e}")
+            logger.exception("Unerwarteter Fehler beim Verarbeiten der Nachricht.")
 
 
 if __name__ == "__main__":

@@ -144,12 +144,9 @@ if __name__ == "__main__":
 
                 with tracer.start_as_current_span("consume-message", context=context) as span:
                     try:
+                        # Nachricht verarbeiten und speichern
                         payload = json.loads(msg.value().decode())
-
-                        # Tracing-Attribute setzen
                         set_kafka_tracing_attributes(span, KAFKA_CONSUMER_TOPIC, msg)
-
-                        # Nachricht in InfluxDB speichern
                         store_in_influxdb(payload, write_api, context)
                         consumer.commit(asynchronous=False)
 

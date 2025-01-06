@@ -14,7 +14,7 @@
   "validation-service": {
     "compose": "services/validation-service/docker-compose.yml"
   },
-  "jaeger": {
-    "compose": "jaeger/docker-compose.yml"
+  "monitor": {
+    "compose": "monitor/docker-compose.yml"
   }
 }
