@@ -133,6 +133,7 @@ if __name__ == "__main__":
                     if not check_partitions(consumer, KAFKA_CONSUMER_TOPIC):
                         continue
                     continue
+
                 if msg.error():
                     logger.error(f"Kafka-Fehler: {msg.error()}")
                     continue
