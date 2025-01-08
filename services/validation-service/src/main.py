@@ -1,19 +1,18 @@
 import os
 import json
 import time
+from utils import on_assign, set_consumer_tracing_attributes, set_producer_tracing_attributes, handle_invalid_message
 from contextlib import contextmanager
-from config_logger import get_logger
-from config_tracer import get_tracer
-from utils import validate_message_with_schema, get_mqtt_topic_segment, on_assign
-from MessageEvent import MessageEvent
+from config.config_logger import get_logger
+from config.config_tracer import get_tracer
+from validator_factory import ValidatorFactory
 from confluent_kafka import Consumer, Producer
 from opentelemetry.propagate import inject, extract
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
-KAFKA_CONSUMER_GROUP = "validation-group"
-KAFKA_RAW_TOPIC = "raw-messages"
-KAFKA_VALIDATED_TOPIC = "validated-messages"
-KAFKA_ERROR_TOPIC = "error-messages"
+KAFKA_CONSUMER_GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "validation-group")
+KAFKA_RAW_TOPIC = os.getenv("KAFAK_RAW_TOPIC", "raw-messages")
+KAFKA_VALIDATED_TOPIC = os.getenv("KAFKA_VALIDATED_TOPIC", "validated-messages")
 
 logger = get_logger()
 tracer = get_tracer()
@@ -64,113 +63,62 @@ def check_partitions(consumer, topic, retry_interval=5):
     return True
 
 
-def set_consumer_tracing_attributes(span, topic, message):
-    """
-    Setzt Tracing-Attribute für eine Kafka-Consumer-Nachricht.
-    """
-    span.set_attribute("kafka.consumer.topic", topic)
-    span.set_attribute("kafka.message.offset", message.offset())
-    span.set_attribute("kafka.message.partition", message.partition())
-
-
-def set_producer_tracing_attributes(span, topic, message):
-    """
-    Setzt Tracing-Attribute für eine Kafka-Producer-Nachricht.
-    """
-    span.set_attribute("kafka.producer.topic", topic)
-    span.set_attribute("kafka.producer.message_size", len(json.dumps(message)))
-
-
-def handle_index_error(payload, producer, span, error):
-    """
-    Behandelt IndexError und sendet die fehlerhafte Nachricht an das Kafka Fehler-Topic.
-    """
-    error_payload = {
-        "original_message": payload,
-        "error": f"IndexError: {str(error)} - mqtt_topic enthält nicht genügend Segmente."
-    }
-    producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
-    set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
-    span.record_exception(error)
-    logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
-
-
-def handle_invalid_message(payload, producer, span, error_message):
-    """
-    Behandelt ungültige Nachrichten und sendet sie an das Fehler-Topic.
-    """
-    error_payload = {
-        "original_message": payload,
-        "error": error_message
-    }
-    producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
-    set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload)
-    span.record_exception(Exception(error_message))
-    logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
-
-
 def process_message(payload, producer, headers):
     """
     Konsumiert Nachrichten aus Kafka, validiert sie und sendet 
     validierte oder fehlerhafte Nachrichten an die entsprechenden Kafka Topics.
     """
-    # Trace-Kontext aus den Kafka-Headern extrahieren
+
+    # Trace-Kontext aus Kafka-Header extrahieren
     context = extract(headers)
 
     with tracer.start_as_current_span("process-message", context=context) as span:
+        span.set_attribute("kafka.message.payload_size", len(json.dumps(payload)))
+
+        validator_factory = ValidatorFactory()
+
+        # Protokoll ermitteln
+        protocol = payload.get("protocol")
+        if not protocol:
+            handle_invalid_message(payload, producer, span, "Protokoll fehlt im Payload")
+            return
+
+        # Passenden Handler für das Protokoll abrufen
+        validator = validator_factory.get_validator(protocol)
+        if not validator:
+            handle_invalid_message(payload, producer, span, f"Unbekanntes Protokoll: {protocol}")
+            return
+
+        # Validierung und Umwandlung der Nachricht
         try:
-            # JSON Schema validieren und Tracing-Attribute setzen
-            is_valid, message = validate_message_with_schema(payload)
-            span.set_attribute("kafka.message.valid", is_valid)
-            span.set_attribute("kafka.message.payload_size", len(json.dumps(payload)))
+            msg_dict = validator(payload)
+            span.set_attribute("kafka.message.valid", True)
 
-            if is_valid:
-                try:
-                    # MQTT-Topic in Segmente aufteilen
-                    mqtt_topics = payload["mqtt_topic"].split("/")
+            # Trace-Kontext einbetten
+            kafka_headers_dict = {}
+            inject(kafka_headers_dict)
+            kafka_headers = [(key, value.encode("utf-8"))
+                             for key, value in kafka_headers_dict.items()]
 
-                    # Nachricht in MessageEvent umwandeln
-                    msg = MessageEvent()
-                    msg.standort = get_mqtt_topic_segment(mqtt_topics, 1)
-                    msg.maschinentyp = get_mqtt_topic_segment(mqtt_topics, 2)
-                    msg.maschinen_id = get_mqtt_topic_segment(mqtt_topics, 3)
-                    msg.status_type = get_mqtt_topic_segment(mqtt_topics, 4)
-                    msg.sensor_id = get_mqtt_topic_segment(mqtt_topics, 5)
-                    msg.timestamp = payload.get("timestamp")
-                    msg.value = payload.get("value", "")
+            # Validierte Nachricht an Kafka senden
+            producer.produce(
+                KAFKA_VALIDATED_TOPIC,
+                value=json.dumps(msg_dict),
+                headers=kafka_headers
+            )
 
-                    msg_dict = msg.to_dict()
+            # Tracing-Attribute setzen bei validierter Nachricht
+            set_producer_tracing_attributes(span, KAFKA_VALIDATED_TOPIC, msg_dict)
+            span.set_attribute("kafka.message.valid", True)
 
-                    # Trace-Kontext einbetten
-                    kafka_headers_dict = {}
-                    inject(kafka_headers_dict)
-                    kafka_headers = [(key, value.encode("utf-8"))
-                                     for key, value in kafka_headers_dict.items()]
-
-                    # Validierte Nachricht an Kafka senden
-                    producer.produce(
-                        KAFKA_VALIDATED_TOPIC,
-                        value=json.dumps(msg_dict),
-                        headers=kafka_headers)
-
-                    # Tracing-Attribute setzen bei validierter Nachricht
-                    set_producer_tracing_attributes(span, KAFKA_VALIDATED_TOPIC, msg_dict)
-
-                    logger.info(f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg_dict}")
-
-                except IndexError as e:
-                    handle_index_error(payload, producer, span, e)
-            else:
-                handle_invalid_message(payload, producer, span, message)
+            logger.info(f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg_dict}")
 
         except Exception as e:
-            span.record_exception(e)
-            logger.exception("Unerwarteter Fehler beim Verarbeiten der Nachricht.")
+            handle_invalid_message(payload, producer, span, f"Fehler bei der Verarbeitung: {e}")
 
 
 if __name__ == "__main__":
     logger.info("Validation Service gestartet.")
-
     with kafka_consumer() as consumer, kafka_producer() as producer:
         consumer.subscribe([KAFKA_RAW_TOPIC], on_assign=on_assign)
 

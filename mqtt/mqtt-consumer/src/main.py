@@ -37,6 +37,7 @@ def on_message(client, userdata, message, producer):
             topic = message.topic
             payload = json.loads(message.payload.decode())
             payload['mqtt_topic'] = topic
+            payload['protocol'] = "mqtt"
 
             # Tracing-Attribute setzen
             span.set_attribute("mqtt.topic", topic)

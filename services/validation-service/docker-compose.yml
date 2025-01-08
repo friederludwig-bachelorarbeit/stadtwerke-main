@@ -18,4 +18,8 @@ services:
     environment:
       - KAFKA_BROKER=kafka:29092
       - TRACER_OTLP_ENDPOINT=http://tempo:4317
+      - KAFKA_CONSUMER_GROUP=validation-group
+      - KAFKA_RAW_TOPIC=raw-messages
+      - KAFKA_VALIDATED_TOPIC=validated-messages
+      - KAFKA_ERROR_TOPIC=error-messages
     restart: always

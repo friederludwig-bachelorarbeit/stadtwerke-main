@@ -1,71 +1,10 @@
-import re
-from config_logger import get_logger
-from jsonschema import validate, ValidationError
+import os
+import json
+from config.config_logger import get_logger
 
-OFFSET_FILE = "last_offset.json"
+KAFKA_ERROR_TOPIC = os.getenv("KAFAK_ERROR_TOPIC", "error-messages")
 
 logger = get_logger()
-
-# JSON-Schema für die Nachrichten
-message_schema = {
-    "type": "object",
-    "properties": {
-        "timestamp": {
-            "type": "string",
-            "format": "date-time"
-        },
-        "value": {
-            "anyOf": [
-                {"type": "integer"},
-                {"type": "string"}
-            ]
-        },
-    },
-    "required": ["timestamp"],
-    "additionalProperties": True
-}
-
-
-def sanitize_input(user_input):
-    """
-    Überprüft, ob die Eingabe nur erlaubte Zeichen enthält.
-    """
-    if not re.match("^[a-zA-Z0-9_-]+$", user_input):
-        raise ValueError("Ungültige Eingabe")
-    return user_input
-
-
-def sanitize_field(value, field_name, max_length=1000):
-    """
-    Validiert, ob ein Feld ein gültiger String ist und nicht zu lang ist.
-    """
-    if not isinstance(value, str):
-        raise ValueError(f"{field_name} muss ein String sein.")
-    if len(value) > max_length:
-        raise ValueError(f"{field_name} ist zu lang.")
-    return value
-
-
-def validate_message_with_schema(payload):
-    """
-    Validiert eine Nachricht basierend auf dem JSON-Schema.
-    """
-    try:
-        validate(instance=payload, schema=message_schema)
-        return True, "Nachricht ist gültig."
-    except ValidationError as e:
-        return False, f"Schema-Validierungsfehler: {e.message}"
-
-
-def get_mqtt_topic_segment(mqtt_topics, index, default=None):
-    """
-    Versucht, ein Segment aus dem MQTT-Topic zu holen. 
-    Gibt default zurück, falls Index out of range.
-    """
-    try:
-        return mqtt_topics[index]
-    except IndexError:
-        return default
 
 
 def on_assign(consumer, partitions):
@@ -73,12 +12,40 @@ def on_assign(consumer, partitions):
     consumer.assign(partitions)
 
 
-def on_revoke(consumer, partitions):
-    try:
-        # Prüfe, ob es Partitionen gibt, die einen gültigen Offset haben (-1001 = kein Offset)
-        partitions_to_commit = [p for p in partitions if p.offset != -1001]
-        if partitions_to_commit:
-            consumer.commit(asynchronous=False)
-            logger.info(f"Partitions revoked: {partitions}")
-    except Exception as e:
-        logger.error(f"Fehler beim Commit vor Revoke: {e}")
+def set_consumer_tracing_attributes(span, topic, message):
+    """
+    Setzt Tracing-Attribute für eine Kafka-Consumer-Nachricht.
+    """
+    span.set_attribute("kafka.consumer.topic", topic)
+    span.set_attribute("kafka.message.offset", message.offset())
+    span.set_attribute("kafka.message.partition", message.partition())
+
+
+def set_producer_tracing_attributes(span, topic, message, attributes=None):
+    """
+    Setzt Tracing-Attribute für eine Kafka-Producer-Nachricht.
+    """
+    span.set_attribute("kafka.producer.topic", topic)
+    span.set_attribute("kafka.producer.message_size", len(json.dumps(message)))
+
+    if attributes and isinstance(attributes, dict):
+        for key, value in attributes.items():
+            span.set_attribute(f"{key}", value)
+    elif attributes is not None:
+        raise ValueError("The 'attributes' parameter must be a dictionary or None.")
+
+
+def handle_invalid_message(payload, producer, span, error_message):
+    """
+    Behandelt ungültige Nachrichten und sendet sie an das Fehler-Topic.
+    """
+    error_payload = {
+        "original_message": payload,
+        "error": error_message
+    }
+    producer.produce(KAFKA_ERROR_TOPIC, value=json.dumps(error_payload))
+    set_producer_tracing_attributes(span, KAFKA_ERROR_TOPIC, error_payload, {
+        "kafka.message.valid": False,
+        "service.error": f"{error_message}"})
+    span.record_exception(Exception(error_message))
+    logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
