@@ -1,5 +1,5 @@
 from validators.base import ProtocolMessageValidator
-from validators.message_event import MessageEvent
+from message_event import MessageEvent
 import logging
 
 logger = logging.getLogger(__name__)
