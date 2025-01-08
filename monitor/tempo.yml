@@ -1,0 +1,31 @@
+server:
+  http_listen_port: 3100
+
+distributor:
+  receivers:
+    jaeger:
+      protocols:
+        thrift_compact:
+        thrift_binary:
+        grpc:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317 # Lauscht auf allen Netzwerkschnittstellen (OTLP-GRPC)
+        http:
+          endpoint: 0.0.0.0:4318 # Lauscht auf allen Netzwerkschnittstellen (OTLP-HTTP)
+
+ingester:
+  trace_idle_period: 5s
+  max_block_bytes: 5
+  max_block_duration: 1m
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/traces
+
+compactor:
+  compaction:
+    block_retention: 48h

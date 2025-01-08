@@ -39,7 +39,7 @@ services:
       - INFLUXDB_TOKEN=${DOCKER_INFLUXDB_INIT_TOKEN}
       - INFLUXDB_ORG=stadtwerke
       - INFLUXDB_BUCKET=iot_data
-      - TRACER_OTLP_ENDPOINT=http://jaeger:4317
+      - TRACER_OTLP_ENDPOINT=http://tempo:4317
     restart: always  
 
 

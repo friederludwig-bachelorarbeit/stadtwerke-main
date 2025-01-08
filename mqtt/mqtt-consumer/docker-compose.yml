@@ -19,5 +19,5 @@ services:
     environment:
       - MQTT_BROKER=mqtt-broker
       - KAFKA_BROKER=kafka:29092
-      - TRACER_OTLP_ENDPOINT=http://jaeger:4317
+      - TRACER_OTLP_ENDPOINT=http://tempo:4317
     restart: always
