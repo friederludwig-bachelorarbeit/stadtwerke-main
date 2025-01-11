@@ -19,5 +19,8 @@ services:
     environment:
       - MQTT_BROKER=mqtt-broker
       - KAFKA_BROKER=kafka:29092
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=stadtwerke/#
+      - KAFKA_PRODUCER_TOPIC=raw-messages
       - TRACER_OTLP_ENDPOINT=http://tempo:4317
     restart: always

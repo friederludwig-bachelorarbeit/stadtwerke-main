@@ -1,10 +1,10 @@
 import os
 import json
 import time
-from utils import on_assign, set_consumer_tracing_attributes, set_producer_tracing_attributes, handle_invalid_message
 from contextlib import contextmanager
 from config.config_logger import get_logger
 from config.config_tracer import get_tracer
+from utils import on_assign, set_consumer_tracing_attributes, set_producer_tracing_attributes, handle_invalid_message, get_kafka_headers_dict, prepare_kafka_headers
 from validator_factory import ValidatorFactory
 from confluent_kafka import Consumer, Producer
 from opentelemetry.propagate import inject, extract
@@ -94,11 +94,10 @@ def process_message(payload, producer, headers):
             msg_dict = validator(payload)
             span.set_attribute("kafka.message.valid", True)
 
-            # Trace-Kontext einbetten
+            # Kafka-Header für Trace-Kontext vorbereiten
             kafka_headers_dict = {}
             inject(kafka_headers_dict)
-            kafka_headers = [(key, value.encode("utf-8"))
-                             for key, value in kafka_headers_dict.items()]
+            kafka_headers = prepare_kafka_headers(kafka_headers_dict)
 
             # Validierte Nachricht an Kafka senden
             producer.produce(
@@ -133,12 +132,9 @@ if __name__ == "__main__":
                     logger.error(f"Kafka-Fehler: {msg.error()}")
                     continue
 
-                # Kafka-Header extrahieren und in ein Dictionary umwandeln
-                headers_list = msg.headers() or []
-                headers = {key: value.decode("utf-8") for key, value in headers_list}
-
-                # Trace-Kontext aus Kafka-Headern extrahieren
-                context = extract(headers)
+                # Kafka-Header extrahieren und Trace-Kontext erstellen
+                kafka_headers = get_kafka_headers_dict(msg.headers())
+                context = extract(kafka_headers)
 
                 with tracer.start_as_current_span("consume-message", context=context) as span:
                     try:
@@ -148,7 +144,7 @@ if __name__ == "__main__":
                         set_consumer_tracing_attributes(span, KAFKA_RAW_TOPIC, msg)
 
                         # Nachricht verarbeiten
-                        process_message(payload, producer, headers)
+                        process_message(payload, producer, kafka_headers)
                         consumer.store_offsets(msg)
 
                     except Exception as e:

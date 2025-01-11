@@ -1,10 +1,9 @@
 import os
 import json
-import time
 from contextlib import contextmanager
 from config_logger import get_logger
 from config_tracer import get_tracer
-from utils import on_assign
+from utils import set_influxdb_tracing_attributes, set_kafka_tracing_attributes, check_partitions, get_headers_dict
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from confluent_kafka import Consumer
@@ -54,55 +53,21 @@ def influxdb_client_manager():
         client.close()
 
 
-def check_partitions(consumer, topic, retry_interval=5):
-    """
-    Überprüft, ob dem Consumer Partitionen zugewiesen sind.
-    Wenn keine Partitionen zugewiesen sind, wird neu abonniert.
-    """
-    assigned_partitions = consumer.assignment()
-    if not assigned_partitions:
-        logger.warning("Keine Partitionen zugewiesen. Erneuter Versuch...")
-        consumer.subscribe([topic], on_assign=on_assign)
-        time.sleep(retry_interval)
-        return False
-    return True
-
-
-def set_kafka_tracing_attributes(span, topic, message):
-    """
-    Setzt Tracing-Attribute für Kafka-Nachrichten.
-    """
-    span.set_attribute("kafka.consumer.topic", topic)
-    span.set_attribute("kafka.message.offset", message.offset())
-    span.set_attribute("kafka.message.partition", message.partition())
-    span.set_attribute("message.payload_size", len(message.value()))
-
-
-def set_influxdb_tracing_attributes(span, bucket, tags):
-    """
-    Setzt Tracing-Attribute für InfluxDB.
-    """
-    span.set_attribute("db.operation", "write")
-    span.set_attribute("db.system", "influxdb")
-    span.set_attribute("influxdb.bucket", bucket)
-    for tag_key, tag_value in tags.items():
-        span.set_attribute(f"data.tag.{tag_key}", tag_value)
-
-
 def store_in_influxdb(payload, write_api, context):
-    """ Speichert die Daten aus Kafka in InfluxDB. """
+    """ 
+    Speichert die Daten aus Kafka in InfluxDB.
+    """
     with tracer.start_as_current_span("store-in-influxdb", context=context) as span:
         try:
-            # InfluxDB-Daten aus der Payload
             timestamp = payload.get("timestamp")
-            measurement = payload.get("measurement")  # Der Messungstyp, z. B. status_type
+            measurement = payload.get("measurement")
             tags = payload.get("tags", {})
             fields = payload.get("fields", {})
 
             # Tracing-Attribute setzen
             set_influxdb_tracing_attributes(span, INFLUXDB_BUCKET, tags)
 
-            # Datenpunkt erstellen
+            # TSDB Datenpunkt erstellen
             point = Point(measurement).time(timestamp)
 
             # Tags hinzufügen
@@ -113,7 +78,7 @@ def store_in_influxdb(payload, write_api, context):
             for field_key, field_value in fields.items():
                 point = point.field(field_key, field_value)
 
-            # Datenpunkt in die Datenbank schreiben
+            # Datenpunkt in die TSDB schreiben
             write_api.write(bucket=INFLUXDB_BUCKET, record=point)
             logger.info(f"Nachricht gespeichert: {payload}")
 
@@ -140,7 +105,7 @@ if __name__ == "__main__":
 
                 # Kafka-Header extrahieren und Trace-Kontext erstellen
                 headers = msg.headers() or []
-                headers_dict = {key: value.decode("utf-8") for key, value in headers}
+                headers_dict = get_headers_dict(headers)
                 context = extract(headers_dict)
 
                 with tracer.start_as_current_span("consume-message", context=context) as span:

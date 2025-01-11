@@ -3,15 +3,16 @@ import json
 from contextlib import contextmanager
 from config_logger import get_logger
 from config_tracer import get_tracer
+from utils import prepare_kafka_headers
 from paho.mqtt.client import Client
 from confluent_kafka import Producer
 from opentelemetry.propagate import inject
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
-MQTT_PORT = 1883
-MQTT_TOPIC = "stadtwerke/#"
-KAFKA_PRODUCER_TOPIC = "raw-messages"
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "stadtwerke/#")
+KAFKA_PRODUCER_TOPIC = os.getenv("KAFKA_PRODUCER_TOPIC", "raw-messages")
 
 logger = get_logger()
 tracer = get_tracer()
@@ -47,8 +48,7 @@ def on_message(client, userdata, message, producer):
             # Kafka-Header für Trace-Kontext vorbereiten
             kafka_headers_dict = {}
             inject(kafka_headers_dict)
-            kafka_headers = [(key, value.encode("utf-8"))
-                             for key, value in kafka_headers_dict.items()]
+            kafka_headers = prepare_kafka_headers(kafka_headers_dict)
 
             # Nachricht an Kafka senden
             with tracer.start_as_current_span("send-to-kafka") as kafka_span:
@@ -75,6 +75,7 @@ def on_message(client, userdata, message, producer):
 if __name__ == "__main__":
     mqtt_client = Client()
 
+    # Fügt den Kafka-Producer der on_message Callback-Funktion hinzu
     with kafka_producer() as producer:
         def wrapped_on_message(client, userdata, message):
             on_message(client, userdata, message, producer)

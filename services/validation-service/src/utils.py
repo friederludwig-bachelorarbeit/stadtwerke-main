@@ -49,3 +49,21 @@ def handle_invalid_message(payload, producer, span, error_message):
         "service.error": f"{error_message}"})
     span.record_exception(Exception(error_message))
     logger.error(f"Fehlerhafte Nachricht an {KAFKA_ERROR_TOPIC} gesendet: {error_payload}")
+
+
+def get_kafka_headers_dict(headers):
+    """
+    Wandelt Kafka-Header in ein Dictionary um.
+    :param headers: Liste der Kafka-Header (Tuple von Key und Value).
+    :return: Dictionary mit dekodierten Headern.
+    """
+    return {key: value.decode("utf-8") for key, value in (headers or [])}
+
+
+def prepare_kafka_headers(headers_dict):
+    """
+    Wandelt ein Dictionary mit Headern in eine Liste von Kafka-kompatiblen Header-Tuples um.
+    :param headers_dict: Dictionary mit Headern (Key-Value-Paare).
+    :return: Liste von Kafka-Headern (Tuples), wobei die Werte UTF-8-kodiert sind.
+    """
+    return [(key, value.encode("utf-8")) for key, value in headers_dict.items()]
