@@ -91,7 +91,7 @@ def process_message(payload, producer, headers):
 
         # Validierung und Umwandlung der Nachricht
         try:
-            msg_dict = validator(payload)
+            msg = validator.validate(payload)
             span.set_attribute("kafka.message.valid", True)
 
             # Kafka-Header für Trace-Kontext vorbereiten
@@ -102,15 +102,15 @@ def process_message(payload, producer, headers):
             # Validierte Nachricht an Kafka senden
             producer.produce(
                 KAFKA_VALIDATED_TOPIC,
-                value=json.dumps(msg_dict),
+                value=json.dumps(msg),
                 headers=kafka_headers
             )
 
             # Tracing-Attribute setzen bei validierter Nachricht
-            set_producer_tracing_attributes(span, KAFKA_VALIDATED_TOPIC, msg_dict)
+            set_producer_tracing_attributes(span, KAFKA_VALIDATED_TOPIC, msg)
             span.set_attribute("kafka.message.valid", True)
 
-            logger.info(f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg_dict}")
+            logger.info(f"Validierte Nachricht an {KAFKA_VALIDATED_TOPIC} gesendet: {msg}")
 
         except Exception as e:
             handle_invalid_message(payload, producer, span, f"Fehler bei der Verarbeitung: {e}")

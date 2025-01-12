@@ -4,8 +4,26 @@ networks:
     external: true
     driver: bridge
 
-
 services:
+  validation-service:
+    build:
+      context: ./validation-service
+      dockerfile: Dockerfile
+    container_name: validation-service
+    command: "watchmedo auto-restart --directory=/app/src -- python -m src.main"
+    volumes:
+      - ./validation-service/src:/app/src
+    networks:
+      - kafka-network
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - TRACER_OTLP_ENDPOINT=http://tempo:4317
+      - KAFKA_CONSUMER_GROUP=validation-group
+      - KAFKA_RAW_TOPIC=raw-messages
+      - KAFKA_VALIDATED_TOPIC=validated-messages
+      - KAFKA_ERROR_TOPIC=error-messages
+    restart: always
+
   influxdb:
     image: influxdb:2.7 
     container_name: influxdb
@@ -23,14 +41,15 @@ services:
     volumes:
       - influxdb-data:/var/lib/influxdb2  
     restart: always
+
   persistence-service:
     build:
-      context: .
+      context: ./persistence-service
       dockerfile: Dockerfile
     container_name: persistence-service
     command: "watchmedo auto-restart --directory=/app/src -- python -m src.main"
     volumes:
-      - ./:/app
+      - ./persistence-service/src:/app/src
     networks:
       - kafka-network
     environment:

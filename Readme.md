@@ -17,6 +17,14 @@ Stellen Sie sicher, dass die folgenden Tools auf Ihrem System installiert sind:
 ## Erster Start
 Führen Sie die folgenden Schritte aus, um das Projekt zum ersten Mal zu starten:
 
+```bash
+bash docker network create kafka-network
+```
+
+# Grafana Tempo
+
+/explore?schemaVersion=1&panes=%7B%22bo2%22:%7B%22datasource%22:%22be9oo252k21hcc%22,%22queries%22:%5B%7B%22query%22:%22${__data.fields["traceID"]}%22,%22queryType%22:%22traceql%22,%22refId%22:%22A%22,%22limit%22:20,%22tableType%22:%22traces%22,%22filters%22:%5B%7B%22id%22:%22c4ab1bed%22,%22operator%22:%22%3D%22,%22scope%22:%22span%22%7D%5D%7D%5D,%22range%22:%7B%22from%22:%221736609019562%22,%22to%22:%221736612619562%22%7D%7D%7D&orgId=1
+
 
 1. **Docker-Container starten**:
    ```bash

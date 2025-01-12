@@ -1,7 +1,6 @@
 import re
 from abc import ABC, abstractmethod
 from datetime import datetime
-from jsonschema import validate, ValidationError
 from message_event import MessageEvent
 
 
@@ -9,29 +8,12 @@ class ProtocolMessageValidator(ABC):
     """
     Abstrakte Basisklasse für Protokoll-Validatoren.
     """
-
-    def __call__(self, payload):
-        return self.validate(payload)
-
     @abstractmethod
     def validate(self, payload):
         """
         Validiert den Payload für ein spezifisches Protokoll.
         """
         pass
-
-    def validate_schema(self, payload, schema):
-        """
-        Führt die JSON-Schema-Validierung durch.
-        :param payload: Zu validierende Nachricht.
-        :param schema: JSON-Schema für die Validierung.
-        :return: Tuple (is_valid: bool, error_message: str)
-        """
-        try:
-            validate(instance=payload, schema=schema)
-            return True, None
-        except ValidationError as e:
-            return False, f"Schema-Validierungsfehler: {e.message}"
 
     def sanitize_input(self, value):
         """
@@ -43,7 +25,7 @@ class ProtocolMessageValidator(ABC):
         max_str_length = 1000
 
         if isinstance(value, str):
-            if not re.match("^[a-zA-Z0-9_-]+$", value):
+            if not re.match("^[a-zA-Z0-9_:,;\\- '\"()]+$", value):
                 raise ValueError(f"{'Eingabe'} enthält ungültige Zeichen.")
             if len(value) > max_str_length:
                 raise ValueError(f"{'Eingabe'} ist zu lang (max. {max_str_length} Zeichen).")
@@ -73,11 +55,12 @@ class ProtocolMessageValidator(ABC):
         """
         errors = []
         try:
+            self.validate_timestamp(event.timestamp)
             self.sanitize_input(event.standort)
             self.sanitize_input(event.maschinentyp)
             self.sanitize_input(event.maschinen_id)
             self.sanitize_input(event.sensor_id)
-            self.validate_timestamp(event.timestamp)
+            self.sanitize_input(event.value)
         except ValueError as e:
             errors.append(str(e))
 

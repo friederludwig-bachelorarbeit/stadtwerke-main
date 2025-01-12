@@ -2,14 +2,11 @@
   "kafka": {
     "compose": "kafka/docker-compose.yml"
   },
-  "mqtt-consumer": {
-    "compose": "consumer/mqtt-consumer/docker-compose.yml"
+  "consumer": {
+    "compose": "consumer/docker-compose.yml"
   },
-  "persistence-service": {
-    "compose": "services/persistence-service/docker-compose.yml"
-  },
-  "validation-service": {
-    "compose": "services/validation-service/docker-compose.yml"
+  "services": {
+    "compose": "services/docker-compose.yml"
   },
   "monitoring": {
     "compose": "monitoring/docker-compose.yml"
