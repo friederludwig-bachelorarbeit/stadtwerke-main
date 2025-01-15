@@ -1,8 +1,8 @@
 import os
 import json
 from contextlib import contextmanager
-from config_logger import get_logger
-from config_tracer import get_tracer
+from config.config_logger import get_logger
+from config.config_tracer import get_tracer
 from utils import set_influxdb_tracing_attributes, set_kafka_tracing_attributes, check_partitions, get_headers_dict
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS

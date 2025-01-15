@@ -6,6 +6,17 @@ networks:
 
 
 services:
+  mqtt-broker:
+    image: eclipse-mosquitto
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - kafka-network
+    restart: always
+
   mqtt-consumer:
     build:
       context: ./mqtt-consumer

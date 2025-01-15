@@ -1,5 +1,5 @@
 import time
-from config_logger import get_logger
+from config.config_logger import get_logger
 
 logger = get_logger()
 

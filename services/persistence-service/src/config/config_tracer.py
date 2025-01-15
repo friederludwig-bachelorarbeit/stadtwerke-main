@@ -6,7 +6,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, Spa
 from opentelemetry.sdk.resources import Resource
 from opentelemetry import trace
 
-TRACER_SERVICE_NAME = "validation-service"
+TRACER_SERVICE_NAME = "persistence-service"
 TRACER_OTLP_ENDPOINT = os.getenv("TRACER_OTLP_ENDPOINT")
 LOCAL_TRACE_FILE = f"{TRACER_SERVICE_NAME}_traces.jsonl"
 
@@ -19,7 +19,6 @@ class OTLPJsonFileExporter(SpanExporter):
 
     def __init__(self, filepath):
         self.filepath = os.path.abspath(filepath)
-        # Datei erstellen, falls sie nicht existiert
         open(self.filepath, 'a').close()
 
     def export(self, spans):
@@ -50,7 +49,7 @@ def get_tracer():
     """
     Konfiguriert den OTLP-Tracer für OpenTelemetry und fügt den JSON Lines File Exporter hinzu.
     """
-    # OTLP-Exporter für Tempo
+    # OTLP-Exporter für Tempo/Jaeger
     otlp_exporter = OTLPSpanExporter(
         endpoint=TRACER_OTLP_ENDPOINT,
         insecure=True
