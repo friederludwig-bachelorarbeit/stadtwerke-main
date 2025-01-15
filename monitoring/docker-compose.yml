@@ -11,7 +11,7 @@ services:
     image: grafana/tempo:latest
     container_name: tempo
     ports:
-      - "3100:3100"  # Tempo Dashboard
+      - "3100:3100"  # HTTP
       - "4317:4317"  # OTLP
     volumes:
       - ./tempo.yml:/etc/tempo/tempo.yml 
@@ -30,6 +30,9 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - grafana-storage:/var/lib/grafana
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./dashboards:/etc/grafana/provisioning/dashboards/dashboards
     networks:
       - kafka-network
     depends_on:
