@@ -6,6 +6,7 @@ Dieses Projekt enthält mehrere Microservices und Container, die mithilfe von Do
 - MQTT-Consumer
 - Validation-Service
 - Persistence-Service (InfluxDB)
+- Monitoring mit Grafana
 
 ## Voraussetzungen
 Stellen Sie sicher, dass die folgenden Tools auf Ihrem System installiert sind:
@@ -14,28 +15,37 @@ Stellen Sie sicher, dass die folgenden Tools auf Ihrem System installiert sind:
 - [Docker Compose](https://docs.docker.com/compose/)
 - [jq](https://stedolan.github.io/jq/) (zum Verarbeiten von JSON-Dateien in Shell-Skripten)
 
-## Erster Start
-Führen Sie die folgenden Schritte aus, um das Projekt zum ersten Mal zu starten:
 
+#### jq installieren
 ```bash
-bash docker network create kafka-network
+# mac os
+brew install jq
+
+# windows
+choco install jq
 ```
 
-# Grafana Tempo
-Tempo Datasource: http://tempo:3100
 
+## 🚀 Erster Start
+Führen Sie die folgenden Schritte aus, um das Projekt zum ersten Mal zu starten:
 
-1. **Docker-Container starten**:
+1. **Docker-Netzwerk erstellen**:
+    ```bash
+    bash docker network create kafka-network
+    ```
+
+2. **Docker-Container starten**:
    ```bash
    bash cmd/start_container.sh
    ```
 
-2. **Überprüfen, ob die Container laufen**:
+3. **Überprüfen, ob die Container laufen**:
    ```bash
    docker ps
    ```
 
-## Dienste stoppen
+
+## 🛑 Dienste stoppen
 Um alle Dienste zu stoppen:
 
 - **Container stoppen**:
@@ -43,8 +53,18 @@ Um alle Dienste zu stoppen:
   bash cmd/stop_container.sh
   ```
 
+## 📊 Grafana Dashboard aufrufen
+Das System ist jetzt bereit und empfängt eingehende Nachrichten.
 
-## Verfügbare Shell-Skripte
+🔗 Grafana Dashboard: http://localhost:3000/
+
+Falls die Daten im Dashboard nicht sofort angezeigt werden:
+
+1. Öffne das Grafana Dashboard.
+2. Klicke bei einer Kachel auf "Bearbeiten".
+3. Warte einen kurzen Moment – die Nachrichten sollten nun erscheinen.
+
+## 📃 Verfügbare Shell-Skripte
 Die Shell-Skripte befinden sich im Verzeichnis `cmd/...` und können mit `bash` ausgeführt werden. Sie dienen der Verwaltung der Services und Container:
 
 ### 1. **`start_container.sh`**

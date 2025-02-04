@@ -21,7 +21,7 @@ services:
       - KAFKA_CONSUMER_GROUP=validation-group
       - KAFKA_RAW_TOPIC=raw-messages
       - KAFKA_VALIDATED_TOPIC=validated-messages
-      - KAFKA_ERROR_TOPIC=error-messages
+      - KAFKA_ERROR_TOPIC=invalid-messages
     restart: always
 
   influxdb:

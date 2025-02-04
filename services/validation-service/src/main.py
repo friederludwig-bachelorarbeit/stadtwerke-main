@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from config.config_logger import get_logger
 from config.config_tracer import get_tracer
 from utils import on_assign, set_consumer_tracing_attributes, set_producer_tracing_attributes, handle_invalid_message, get_kafka_headers_dict, prepare_kafka_headers
-from validator_factory import ValidatorFactory
+from validators.validator_factory import ValidatorFactory
 from confluent_kafka import Consumer, Producer
 from opentelemetry.propagate import inject, extract
 
@@ -13,6 +13,7 @@ KAFKA_BROKER = os.getenv("KAFKA_BROKER", "127.0.0.1:9092")
 KAFKA_CONSUMER_GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "validation-group")
 KAFKA_RAW_TOPIC = os.getenv("KAFAK_RAW_TOPIC", "raw-messages")
 KAFKA_VALIDATED_TOPIC = os.getenv("KAFKA_VALIDATED_TOPIC", "validated-messages")
+KAFKA_ERROR_TOPIC = os.getenv("KAFKA_ERROR_TOPIC", "invalid-messages")
 
 logger = get_logger()
 tracer = get_tracer()
@@ -83,7 +84,7 @@ def process_message(payload, producer, headers):
             handle_invalid_message(payload, producer, span, "Protokoll fehlt im Payload")
             return
 
-        # Passenden Handler für das Protokoll abrufen
+        # Passenden Validator-Handler für das Protokoll abrufen
         validator = validator_factory.get_validator(protocol)
         if not validator:
             handle_invalid_message(payload, producer, span, f"Unbekanntes Protokoll: {protocol}")
@@ -114,6 +115,11 @@ def process_message(payload, producer, headers):
 
         except Exception as e:
             handle_invalid_message(payload, producer, span, f"Fehler bei der Verarbeitung: {e}")
+            # Invalide Nachricht an Kafka senden
+            producer.produce(
+                KAFKA_ERROR_TOPIC,
+                value=json.dumps(e),
+            )
 
 
 if __name__ == "__main__":

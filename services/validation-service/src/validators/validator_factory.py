@@ -1,5 +1,5 @@
 from validators.mqtt_validator import MQTTMessageValidator
-from validators.http_validator import HTTPMessageValidator
+from validators.coap_validator import CoAPMessageValidator
 
 
 class ValidatorFactory:
@@ -7,7 +7,7 @@ class ValidatorFactory:
     def get_validator(protocol_type):
         if protocol_type == "mqtt":
             return MQTTMessageValidator()
-        elif protocol_type == "http":
-            return HTTPMessageValidator()
+        elif protocol_type == "coap":
+            return CoAPMessageValidator()
         else:
             return None

@@ -24,8 +24,10 @@ class ProtocolMessageValidator(ABC):
         valid_types = str, int, float
         max_str_length = 1000
 
+        regex = re.compile("^[a-zA-Z0-9_:,;\\- '\"()]+$")
+
         if isinstance(value, str):
-            if not re.match("^[a-zA-Z0-9_:,;\\- '\"()]+$", value):
+            if not re.match(regex, value):
                 raise ValueError(f"{'Eingabe'} enthält ungültige Zeichen.")
             if len(value) > max_str_length:
                 raise ValueError(f"{'Eingabe'} ist zu lang (max. {max_str_length} Zeichen).")

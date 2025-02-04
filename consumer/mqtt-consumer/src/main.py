@@ -3,7 +3,7 @@ import json
 from contextlib import contextmanager
 from config_logger import get_logger
 from config_tracer import get_tracer
-from utils import prepare_kafka_headers
+from utils import prepare_kafka_headers, set_mqtt_tracing_attributes, set_kafka_tracing_attributes
 from paho.mqtt.client import Client
 from confluent_kafka import Producer
 from opentelemetry.propagate import inject
@@ -41,9 +41,7 @@ def on_message(client, userdata, message, producer):
             payload['protocol'] = "mqtt"
 
             # Tracing-Attribute setzen
-            span.set_attribute("mqtt.topic", topic)
-            span.set_attribute("mqtt.payload_size", len(message.payload))
-            span.set_attribute("mqtt.qos", message.qos)
+            set_mqtt_tracing_attributes(span, topic, message)
 
             # Kafka-Header für Trace-Kontext vorbereiten
             kafka_headers_dict = {}
@@ -60,8 +58,7 @@ def on_message(client, userdata, message, producer):
                 )
 
                 # Tracing-Attribute setzen
-                kafka_span.set_attribute("kafka.topic", KAFKA_PRODUCER_TOPIC)
-                kafka_span.set_attribute("kafka.message_size", len(json.dumps(payload)))
+                set_kafka_tracing_attributes(kafka_span, KAFKA_PRODUCER_TOPIC, payload)
 
             logger.info(f"Nachricht an Kafka gesendet: {payload}")
         except json.JSONDecodeError:
@@ -74,6 +71,7 @@ def on_message(client, userdata, message, producer):
 
 if __name__ == "__main__":
     mqtt_client = Client()
+    logger.info("MQTT Consumer gestartet.")
 
     # Fügt den Kafka-Producer der on_message Callback-Funktion hinzu
     with kafka_producer() as producer:
@@ -93,3 +91,5 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Fehler bei der Verbindung mit MQTT-Broker: {e}")
             mqtt_client.disconnect()
+        finally:
+            logger.info("MQTT Consumer beendet.")
