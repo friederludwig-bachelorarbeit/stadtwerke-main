@@ -8,6 +8,10 @@ Dieses Projekt enthält mehrere Microservices und Container, die mithilfe von Do
 - Persistence-Service (InfluxDB)
 - Monitoring mit Grafana
 
+<br/>
+
+> Das System kann getestet werden, indem Nachrichten über die entwickelte [Testsoftware](https://github.com/friederludwig-bachelorarbeit/stadtwerke-test) an das System gesendet werden.
+
 ## Voraussetzungen
 Stellen Sie sicher, dass die folgenden Tools auf Ihrem System installiert sind:
 
@@ -18,10 +22,10 @@ Stellen Sie sicher, dass die folgenden Tools auf Ihrem System installiert sind:
 
 #### jq installieren
 ```bash
-# mac os
+# Auf macOS/Linux:
 brew install jq
 
-# windows
+# Auf Windows:
 choco install jq
 ```
 
