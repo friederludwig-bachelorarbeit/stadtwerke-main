@@ -59,11 +59,11 @@ Um alle Dienste zu stoppen:
 
 ## 📊 Grafana Dashboard aufrufen
 
-🔗 Grafana Dashboard: http://localhost:3000/
+🔗 Grafana Dashboard Stadtwerke: http://localhost:3000/
 
 Falls die Daten im Dashboard nicht sofort angezeigt werden:
 
-1. Öffne das Grafana Dashboard.
+1. Öffne das Grafana Dashboard (Stadtwerke).
 2. Klicke bei einer Kachel auf "Bearbeiten".
 3. Warte einen kurzen Moment – die Nachrichten sollten nun erscheinen.
 
