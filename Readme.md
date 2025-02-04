@@ -106,15 +106,20 @@ Damit die `bash` Skripte funktionieren, müssen die Container über die JSON-Dat
 
 ### **`container.json`**
 Definiert alle Docker Compose-Dateien für die Container.
-<br/> Beispiel:
 
 ```json
 {
-  "mqtt-consumer": {
-    "compose": "mqtt-consumer/docker-compose.yml"
+  "kafka": {
+    "compose": "kafka/docker-compose.yml"
   },
-  "influxdb": {
-    "compose": "persistence-service/docker-compose.yml"
+  "consumer": {
+    "compose": "consumer/docker-compose.yml"
+  },
+  "services": {
+    "compose": "services/docker-compose.yml"
+  },
+  "monitoring": {
+    "compose": "monitoring/docker-compose.yml"
   }
 }
 ```
