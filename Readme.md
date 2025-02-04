@@ -58,7 +58,6 @@ Um alle Dienste zu stoppen:
   ```
 
 ## 📊 Grafana Dashboard aufrufen
-Das System ist jetzt bereit und empfängt eingehende Nachrichten.
 
 🔗 Grafana Dashboard: http://localhost:3000/
 
